@@ -1,4 +1,4 @@
-// Prisma schema for Huntboard. Models are added in Phase 2.
+// Prisma schema for Huntboard.
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -8,4 +8,68 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum ApplicationStatus {
+  WISHLIST
+  APPLIED
+  OA
+  INTERVIEW
+  OFFER
+  REJECTED
+}
+
+enum EventType {
+  APPLIED
+  OA
+  INTERVIEW
+  FOLLOW_UP
+  OFFER
+  REJECTED
+  NOTE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String?
+  email        String   @unique
+  passwordHash String
+  isGuest      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  applications Application[]
+}
+
+model Application {
+  id          String            @id @default(cuid())
+  userId      String
+  company     String
+  role        String
+  jobUrl      String?
+  location    String?
+  salaryRange String?
+  status      ApplicationStatus @default(WISHLIST)
+  source      String?
+  appliedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events Event[]
+
+  @@index([userId])
+}
+
+model Event {
+  id            String    @id @default(cuid())
+  applicationId String
+  type          EventType
+  notes         String?
+  scheduledAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
 }
