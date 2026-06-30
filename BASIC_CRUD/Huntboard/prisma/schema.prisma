@@ -1,0 +1,11 @@
+// Prisma schema for Huntboard. Models are added in Phase 2.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

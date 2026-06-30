@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Huntboard - Build Plan</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --border: #232a34;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #4f9cf9;
+    --accent-soft: rgba(79, 156, 249, 0.12);
+    --green: #3fb950;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 48px 24px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  header { margin-bottom: 40px; }
+  .eyebrow {
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  h1 { font-size: 34px; margin: 8px 0 6px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 16px; max-width: 620px; }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 22px;
+  }
+  .chip {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .chip b { color: var(--text); font-weight: 600; }
+
+  h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 40px 0 18px;
+    font-weight: 600;
+  }
+
+  .phase {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+  }
+  .num {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 17px;
+  }
+  .phase h3 { font-size: 17px; margin-bottom: 4px; }
+  .phase p { color: var(--muted); font-size: 14.5px; }
+  .ship {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--green);
+    background: rgba(63, 185, 80, 0.1);
+    border-radius: 6px;
+    padding: 2px 9px;
+  }
+
+  .stack {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+  .stack div {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .stack span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  .how {
+    background: var(--accent-soft);
+    border: 1px solid rgba(79, 156, 249, 0.25);
+    border-radius: 12px;
+    padding: 18px 20px;
+    font-size: 14.5px;
+    color: var(--text);
+  }
+  footer {
+    margin-top: 44px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Build Plan</div>
+    <h1>Huntboard</h1>
+    <p class="sub">A job-application tracker that models the search as a pipeline. Built phase by phase, each phase a working slice that can be shown.</p>
+    <div class="meta">
+      <div class="chip"><b>Next.js</b> App Router</div>
+      <div class="chip"><b>TypeScript</b></div>
+      <div class="chip"><b>PostgreSQL</b> via Prisma</div>
+      <div class="chip"><b>Auth.js</b> self-hosted</div>
+      <div class="chip"><b>Tailwind</b></div>
+      <div class="chip"><b>Vercel</b> + Neon</div>
+    </div>
+  </header>
+
+  <h2>Phases</h2>
+
+  <div class="phase">
+    <div class="num">1</div>
+    <div>
+      <h3>Foundation</h3>
+      <p>Next.js + TypeScript app, Tailwind, Prisma, connected to Neon Postgres with separate branches for development and production, deployable shell.</p>
+      <span class="ship">Ships: a live blank app</span>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="num">2</div>
+    <div>
+      <h3>Data and auth</h3>
+      <p>Prisma schema for User, Application, Event. Self-hosted Auth.js with email credentials and Google (no managed service like Clerk). Every query scoped strictly to the owner.</p>
+      <span class="ship">Ships: sign in, protected routes</span>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="num">3</div>
+    <div>
+      <h3>Application CRUD</h3>
+      <p>Create, edit, delete, list with filters. Server-side validation with Zod. Real loading, empty, and error states.</p>
+      <span class="ship">Ships: manage applications end to end</span>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="num">4</div>
+    <div>
+      <h3>Detail page and timeline</h3>
+      <p>A single application view with its chronological event timeline: applied, OA, interview, follow-up, outcome.</p>
+      <span class="ship">Ships: full history per application</span>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="num">5</div>
+    <div>
+      <h3>Kanban board</h3>
+      <p>Drag and drop across stages: Wishlist, Applied, OA, Interview, Offer, Rejected. Dragging a card updates its status.</p>
+      <span class="ship">Ships: the visual pipeline</span>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="num">6</div>
+    <div>
+      <h3>Dashboard</h3>
+      <p>Derived insight: applications over time, response rate, conversion through each stage.</p>
+      <span class="ship">Ships: the analytics story</span>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="num">7</div>
+    <div>
+      <h3>Polish</h3>
+      <p>One-click guest login seeded with demo data. Consistent states, accessibility pass, README with live link and screenshots.</p>
+      <span class="ship">Ships: recruiter-ready experience</span>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="num">8</div>
+    <div>
+      <h3>Deploy</h3>
+      <p>Vercel for the app, Neon for Postgres. Publicly reachable with a guest entry point.</p>
+      <span class="ship">Ships: the live URL</span>
+    </div>
+  </div>
+
+  <h2>Stack</h2>
+  <div class="stack">
+    <div>Next.js<span>App Router, RSC</span></div>
+    <div>TypeScript<span>strict mode</span></div>
+    <div>PostgreSQL<span>Prisma ORM</span></div>
+    <div>Auth.js<span>self-hosted, credentials + Google</span></div>
+    <div>Zod<span>server validation</span></div>
+    <div>Tailwind<span>styling</span></div>
+    <div>Vercel<span>hosting</span></div>
+    <div>Neon<span>managed Postgres</span></div>
+  </div>
+
+  <h2>How we work</h2>
+  <div class="how">
+    One phase at a time. For each step I explain the decision, recommend one option with reasoning, you confirm, then I build it. Every phase ends in something that runs, so progress is always visible.
+  </div>
+
+  <footer>Huntboard build plan</footer>
+
+</div>
+</body>
+</html>
