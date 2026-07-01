@@ -18,6 +18,15 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   REJECTED: "Rejected",
 };
 
+export const STATUS_DOT_CLASS: Record<ApplicationStatus, string> = {
+  WISHLIST: "bg-slate-400",
+  APPLIED: "bg-blue-500",
+  OA: "bg-amber-500",
+  INTERVIEW: "bg-violet-500",
+  OFFER: "bg-emerald-500",
+  REJECTED: "bg-rose-500",
+};
+
 export const STATUS_BADGE_CLASS: Record<ApplicationStatus, string> = {
   WISHLIST: "bg-slate-100 text-slate-700 ring-slate-200",
   APPLIED: "bg-blue-50 text-blue-700 ring-blue-200",

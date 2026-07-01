@@ -24,7 +24,7 @@ export function KanbanCard({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-start justify-between gap-2 rounded-md border border-slate-200 bg-white p-3 shadow-sm"
+      className="flex items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md"
     >
       <Link href={`/applications/${id}`} className="min-w-0">
         <p className="truncate text-sm font-medium text-slate-900">{company}</p>
