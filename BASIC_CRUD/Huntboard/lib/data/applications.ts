@@ -13,3 +13,12 @@ export function getApplication(userId: string, id: string) {
     where: { id, userId },
   });
 }
+
+export function getApplicationDetail(userId: string, id: string) {
+  return prisma.application.findFirst({
+    where: { id, userId },
+    include: {
+      events: { orderBy: { createdAt: "desc" } },
+    },
+  });
+}

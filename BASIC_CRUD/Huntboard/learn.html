@@ -172,6 +172,12 @@
     <a href="#mutations">26. Mutations + revalidation</a>
     <a href="#crudui">27. The CRUD UI</a>
     <a href="#selftest3">28. Phase 3 self-test</a>
+
+    <div class="grp">Phase 4 - Timeline</div>
+    <a href="#relations">29. The second relationship</a>
+    <a href="#transitive">30. Transitive authorization</a>
+    <a href="#detailpage">31. Detail page + timeline UI</a>
+    <a href="#selftest4">32. Phase 4 self-test</a>
   </nav>
 </aside>
 
@@ -1096,7 +1102,111 @@ AUTH_SECRET="...generated with: openssl rand -base64 33..."</code></pre>
   A URL-based filter is shareable, bookmarkable, and survives a refresh, and it needs no client-side state - the server component just reads the query param and queries accordingly.</details>
 
   <hr class="soft">
-  <p style="color:var(--faint);font-size:13px;">End of Phase 3. Next up, Phase 4 adds the application detail page and its event timeline, which introduces the second one-to-many relationship (Application to Event).</p>
+  <p style="color:var(--faint);font-size:13px;">End of Phase 3. Phase 4 continues below.</p>
+</section>
+
+<section id="relations">
+  <h2>29. The second relationship: Application to Event <a href="#use" class="toplink">top</a></h2>
+  <p>Phase 4 adds the <strong>timeline</strong>: each application can carry a list of events (applied, online assessment, interview, follow-up, offer, rejected, or a plain note). This is the second <strong>one-to-many</strong> relationship in the app, and it stacks on the first:</p>
+  <div class="flow">
+<pre>
+  User  ──(1 to many)──▶  Application  ──(1 to many)──▶  Event
+  one person             many job apps                many timeline
+                                                      events per app
+</pre>
+  </div>
+  <p>The <code class="k">Event</code> table already existed in our schema from Phase 2 - we just had not used it yet. Each event row stores which application it belongs to (<code class="k">applicationId</code>), a <code class="k">type</code> (from a fixed enum), optional <code class="k">notes</code>, and an optional <code class="k">scheduledAt</code> date.</p>
+
+  <h3>Reading an application together with its events</h3>
+  <p>Prisma lets us fetch a row and its related rows in one query using <code class="k">include</code>:</p>
+  <p class="codecap">lib/data/applications.ts</p>
+<pre><code><span class="kw">export function</span> <span class="fn">getApplicationDetail</span>(userId: string, id: string) {
+  <span class="kw">return</span> prisma.application.<span class="fn">findFirst</span>({
+    where: { id, userId },                       <span class="cm"># still scoped to the owner</span>
+    include: {
+      events: { orderBy: { createdAt: <span class="st">"desc"</span> } },  <span class="cm"># newest first</span>
+    },
+  });
+}</code></pre>
+  <div class="box why">
+    <span class="lbl">Why include instead of a second query</span>
+    <p><code class="k">include</code> fetches the application and its events in a single round-trip and returns them as one nested object (<code class="k">application.events</code>). Writing a separate query for the events would mean two trips to the database and more code. This is the ORM earning its keep.</p>
+  </div>
+</section>
+
+<section id="transitive">
+  <h2>30. Transitive authorization <a href="#use" class="toplink">top</a></h2>
+  <p>In Phase 3 the rule was "a user can only touch applications where <code class="k">userId</code> matches." Events are trickier: an event has no <code class="k">userId</code> of its own. It belongs to a user <em>through</em> its application. So ownership is <strong>transitive</strong>: you own an event if you own the application it hangs off.</p>
+  <p>We enforce this two ways depending on the operation.</p>
+
+  <h4>Adding an event: check the parent first</h4>
+  <p class="codecap">lib/actions/events.ts (addEvent)</p>
+<pre><code><span class="kw">const</span> owned = <span class="kw">await</span> prisma.application.<span class="fn">findFirst</span>({
+  where: { id: applicationId, userId: user.id },   <span class="cm"># do you own the parent?</span>
+  select: { id: true },
+});
+<span class="kw">if</span> (!owned) <span class="kw">return</span> { error: <span class="st">"Application not found"</span> };  <span class="cm"># no -> refuse</span>
+
+<span class="kw">await</span> prisma.event.<span class="fn">create</span>({ data: { ...parsed.data, applicationId } });</code></pre>
+  <p>We confirm the application belongs to the user <em>before</em> attaching an event to it. If they do not own it, we stop.</p>
+
+  <h4>Deleting an event: a relation filter</h4>
+  <p>Prisma can filter by a condition on a <em>related</em> table. That lets us delete an event only if its application is owned by the user, in one query:</p>
+  <p class="codecap">lib/actions/events.ts (deleteEvent)</p>
+<pre><code><span class="kw">await</span> prisma.event.<span class="fn">deleteMany</span>({
+  where: { id: eventId, application: { userId: user.id } },  <span class="cm"># event AND its app's owner</span>
+});</code></pre>
+  <div class="box why">
+    <span class="lbl">What that where clause means</span>
+    <p><code class="k">application: { userId: user.id }</code> is a <strong>relation filter</strong>. It reads as "the event whose id is eventId <em>and</em> whose parent application has this userId." If a user passes an event id that belongs to someone else's application, the filter matches nothing and, exactly like Phase 3, zero rows are deleted. Same guarantee, one relationship deeper.</p>
+  </div>
+  <div class="box interview">
+    <span class="lbl">Interview</span>
+    <p>Nested/child resources are where a lot of real apps leak data, because people forget the child has no owner column of its own. Being able to say "I scope child writes through a relation filter on the parent's userId" is a strong, specific answer. We proved it: user B got a 404 on user A's application detail, so B cannot even see A's events, let alone delete them.</p>
+  </div>
+</section>
+
+<section id="detailpage">
+  <h2>31. The detail page and timeline UI <a href="#use" class="toplink">top</a></h2>
+  <p>The detail page lives at <code class="k">/applications/[id]</code>. It is a server component that:</p>
+  <ol>
+    <li>calls <code class="k">requireUser()</code>, then <code class="k">getApplicationDetail(user.id, id)</code>,</li>
+    <li>renders a 404 with <code class="k">notFound()</code> if the application is missing or not owned,</li>
+    <li>shows the header (company, role, status badge, Edit and Delete), a small meta grid (location, salary, source, posting link, applied date), and the timeline.</li>
+  </ol>
+
+  <h3>The timeline component</h3>
+  <p><code class="k">EventTimeline</code> renders the events as a vertical list with a colored dot per event type, the type label, a date (the scheduled date if set, otherwise when it was logged), any notes, and a Remove button. When there are no events it shows a friendly empty state instead.</p>
+
+  <h3>Adding events without a page reload feeling</h3>
+  <p>The <code class="k">AddEventForm</code> is a client component wired to the <code class="k">addEvent</code> action, which is pre-bound with the application id (<code class="k">addEvent.bind(null, application.id)</code>) - the same <code class="k">bind</code> trick from Phase 3, so the id is not a tamperable field. After a successful add, the action calls <code class="k">revalidatePath("/applications/&lt;id&gt;")</code>, so the timeline below re-renders with the new event immediately.</p>
+
+  <div class="box why">
+    <span class="lbl">Why events are separate from status</span>
+    <p>We deliberately did not make logging an "Interview" event automatically flip the application's status to Interview. Keeping them independent avoids hidden side effects (the kind of "why did my status change?" surprise that makes software feel unpredictable). Status is changed explicitly on the edit form. If we wanted auto-advancement later, we would make it an obvious, opt-in action.</p>
+  </div>
+  <p>Finally, the list page now links each company name to its detail page, and <code class="k">deleteApplication</code> redirects back to <code class="k">/applications</code> after deleting, so removing an application from the detail page lands you cleanly back on the list.</p>
+</section>
+
+<section id="selftest4">
+  <h2>32. Phase 4 self-test <a href="#use" class="toplink">top</a></h2>
+  <details><summary class="q">What kind of relationship is Application to Event, and how do we load them together?</summary>
+  One-to-many (one application has many events). We load them in a single query with Prisma's include: { events: { orderBy: { createdAt: "desc" } } } inside getApplicationDetail.</details>
+
+  <details><summary class="q">An Event has no userId column. How do we know who owns it?</summary>
+  Ownership is transitive: you own an event if you own its parent application. So we authorize through the application - checking application ownership before adding, and using a relation filter on delete.</details>
+
+  <details><summary class="q">What is a Prisma relation filter and where do we use it?</summary>
+  A where condition on a related table. In deleteEvent we use where { id: eventId, application: { userId } } so an event is only deleted if its parent application belongs to the current user. A non-owned event matches zero rows.</details>
+
+  <details><summary class="q">Why check application ownership before creating an event instead of relying on the create call?</summary>
+  event.create only needs an applicationId and would happily attach an event to any application. So we first findFirst the application scoped by userId and refuse if it is not owned, closing the hole.</details>
+
+  <details><summary class="q">Why did we keep event logging separate from application status?</summary>
+  To avoid hidden side effects. Auto-changing status when an event is logged would be surprising and hard to predict. Status changes explicitly via the edit form; any auto-advancement would be an obvious opt-in.</details>
+
+  <hr class="soft">
+  <p style="color:var(--faint);font-size:13px;">End of Phase 4. Next, Phase 5 turns the list into a drag-and-drop kanban board where moving a card between columns updates its status.</p>
 </section>
 
 </main>

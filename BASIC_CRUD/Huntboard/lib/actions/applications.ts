@@ -70,4 +70,5 @@ export async function deleteApplication(id: string) {
   });
 
   revalidatePath("/applications");
+  redirect("/applications");
 }

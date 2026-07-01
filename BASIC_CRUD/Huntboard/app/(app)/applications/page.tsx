@@ -82,7 +82,11 @@ export default async function ApplicationsPage({
             <tbody className="divide-y divide-slate-100">
               {applications.map((app) => (
                 <tr key={app.id} className="text-slate-700">
-                  <td className="px-4 py-3 font-medium text-slate-900">{app.company}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900">
+                    <Link href={`/applications/${app.id}`} className="hover:underline">
+                      {app.company}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">{app.role}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={app.status} />
