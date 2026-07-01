@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
@@ -13,7 +14,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-dvh bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <span className="text-lg font-semibold tracking-tight text-slate-900">Huntboard</span>
+          <div className="flex items-center gap-6">
+            <span className="text-lg font-semibold tracking-tight text-slate-900">Huntboard</span>
+            <nav className="flex items-center gap-4 text-sm font-medium text-slate-600">
+              <Link href="/board" className="transition hover:text-slate-900">
+                Board
+              </Link>
+              <Link href="/applications" className="transition hover:text-slate-900">
+                Applications
+              </Link>
+            </nav>
+          </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-600">{session.user.email}</span>
             <form action={logout}>

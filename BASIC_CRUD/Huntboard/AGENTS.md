@@ -5,6 +5,7 @@ These are fixed rules for this project. Do not change them.
 ## Working style
 - Guide step by step. Build collaboratively and talk through decisions before acting.
 - The build plan lives in build-plan.html. Whenever a plan decision changes, update build-plan.html to match before moving on.
+- learn.html is a deep teaching document. After completing each phase, add a section explaining that phase. Write it so a complete layperson can understand: explain the what, the why (with rejected alternatives), and the how with annotated real code. Keep it very deep.
 
 ## Tooling
 - Use pnpm for all package management and scripts. Never use npm or yarn.
