@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
+import {
+  APPLICATION_STATUSES,
+  type ApplicationStatus,
+} from "@/lib/constants/application";
 import { applicationSchema } from "@/lib/validations/application";
 
 export type FormState = { error: string } | undefined;
@@ -60,6 +64,22 @@ export async function updateApplication(
 
   revalidatePath("/applications");
   redirect("/applications");
+}
+
+export async function updateApplicationStatus(id: string, status: ApplicationStatus) {
+  const user = await requireUser();
+
+  if (!APPLICATION_STATUSES.includes(status)) {
+    return;
+  }
+
+  await prisma.application.updateMany({
+    where: { id, userId: user.id },
+    data: { status },
+  });
+
+  revalidatePath("/board");
+  revalidatePath("/applications");
 }
 
 export async function deleteApplication(id: string) {

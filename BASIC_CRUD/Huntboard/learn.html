@@ -178,6 +178,12 @@
     <a href="#transitive">30. Transitive authorization</a>
     <a href="#detailpage">31. Detail page + timeline UI</a>
     <a href="#selftest4">32. Phase 4 self-test</a>
+
+    <div class="grp">Phase 5 - Kanban</div>
+    <a href="#dnd">33. Drag and drop</a>
+    <a href="#serverclient">34. Server-to-client data</a>
+    <a href="#optimistic">35. Optimistic updates</a>
+    <a href="#selftest5">36. Phase 5 self-test</a>
   </nav>
 </aside>
 
@@ -1206,7 +1212,112 @@ AUTH_SECRET="...generated with: openssl rand -base64 33..."</code></pre>
   To avoid hidden side effects. Auto-changing status when an event is logged would be surprising and hard to predict. Status changes explicitly via the edit form; any auto-advancement would be an obvious opt-in.</details>
 
   <hr class="soft">
-  <p style="color:var(--faint);font-size:13px;">End of Phase 4. Next, Phase 5 turns the list into a drag-and-drop kanban board where moving a card between columns updates its status.</p>
+  <p style="color:var(--faint);font-size:13px;">End of Phase 4. Phase 5 continues below.</p>
+</section>
+
+<section id="dnd">
+  <h2>33. Drag and drop <a href="#use" class="toplink">top</a></h2>
+  <p>Phase 5 turns the plain list into a <strong>kanban board</strong>: six columns (one per pipeline stage) with cards you can drag between them. Dropping a card in a new column changes that application's status. It is the same data as the list, shown as a pipeline you can manipulate directly.</p>
+
+  <h3>Why a library, and which one</h3>
+  <p>Drag and drop looks simple but is genuinely hard to get right: mouse and touch and keyboard input, scroll while dragging, accessibility, collision detection. We use <strong>@dnd-kit</strong>, the modern, actively maintained, accessible toolkit for React.</p>
+  <div class="box why">
+    <span class="lbl">Alternatives rejected</span>
+    <p><code class="k">react-beautiful-dnd</code> is deprecated and unmaintained. The browser's built-in HTML5 drag and drop has poor touch support and awkward ergonomics. @dnd-kit supports pointer, touch, and <em>keyboard</em> dragging out of the box, which is the accessible, professional choice.</p>
+  </div>
+
+  <h3>The three moving parts</h3>
+  <table>
+    <tr><th>Piece</th><th>@dnd-kit tool</th><th>In our code</th></tr>
+    <tr><td>The arena</td><td><code>DndContext</code></td><td><code>kanban-board.tsx</code> wraps everything and receives the drag events</td></tr>
+    <tr><td>A draggable card</td><td><code>useDraggable</code></td><td><code>kanban-card.tsx</code></td></tr>
+    <tr><td>A drop target (column)</td><td><code>useDroppable</code></td><td><code>kanban-column.tsx</code></td></tr>
+  </table>
+  <p>Each card's draggable id is the <em>application id</em>. Each column's droppable id is the <em>status string</em> (WISHLIST, APPLIED, ...). So when a drag ends, "which card, dropped where" is literally "which application id, onto which status."</p>
+  <p class="codecap">kanban-board.tsx (the drop handler)</p>
+<pre><code><span class="kw">function</span> <span class="fn">handleDragEnd</span>(event) {
+  <span class="kw">const</span> id = <span class="fn">String</span>(event.active.id);          <span class="cm"># the card = application id</span>
+  <span class="kw">const</span> status = event.over?.id;                <span class="cm"># the column = new status</span>
+  <span class="kw">if</span> (!status) <span class="kw">return</span>;                        <span class="cm"># dropped outside any column</span>
+  <span class="kw">const</span> card = optimistic.<span class="fn">find</span>((a) =&gt; a.id === id);
+  <span class="kw">if</span> (!card || card.status === status) <span class="kw">return</span>;  <span class="cm"># no move, nothing to do</span>
+  <span class="fn">startTransition</span>(<span class="kw">async</span> () =&gt; {
+    <span class="fn">applyMove</span>({ id, status });              <span class="cm"># update UI instantly (section 35)</span>
+    <span class="kw">await</span> <span class="fn">updateApplicationStatus</span>(id, status);  <span class="cm"># persist in the database</span>
+  });
+}</code></pre>
+
+  <h3>The drag handle</h3>
+  <p>Notice the card has a small grip icon in the corner, and only that icon carries the drag listeners. The rest of the card is a normal link to the detail page. This "drag handle" pattern avoids a classic conflict: if the whole card were draggable, clicking it to open the detail could accidentally start a drag. Separating the handle from the link makes both behaviors reliable.</p>
+</section>
+
+<section id="serverclient">
+  <h2>34. Passing data from server to client <a href="#use" class="toplink">top</a></h2>
+  <p>Drag and drop needs interactivity, so the board must be a <strong>client component</strong>. But the applications live in the database, which only <strong>server components</strong> can read. We bridge the two the standard way:</p>
+  <div class="flow">
+<pre>
+  board/page.tsx  (server component)
+    requireUser()  →  listApplications(user.id)   ← scoped read
+    │  maps rows to { id, company, role, status }
+    ▼  passes as a prop
+  &lt;KanbanBoard applications={cards} /&gt;   (client component)
+    handles all the dragging in the browser
+</pre>
+  </div>
+  <div class="box why">
+    <span class="lbl">Why not fetch in the client</span>
+    <p>The server component already has a secure, user-scoped database connection. Fetching there and passing the result down means no extra API endpoint, no loading spinner on first paint, and the authorization stays on the server where it belongs. The client component only receives the already-filtered data it is allowed to see.</p>
+  </div>
+  <p>The board page passes only the four fields a card needs (id, company, role, status), not the whole row. Sending the minimum keeps the client bundle small and avoids leaking fields the UI does not use.</p>
+</section>
+
+<section id="optimistic">
+  <h2>35. Optimistic updates <a href="#use" class="toplink">top</a></h2>
+  <p>When you drop a card in a new column, waiting for the database round-trip before the card visibly moves would feel laggy. So we move the card <strong>immediately</strong> in the UI, then save in the background. This is an <strong>optimistic update</strong>: we optimistically assume the save will succeed.</p>
+  <p>React gives us a hook built exactly for this: <code class="k">useOptimistic</code>.</p>
+  <p class="codecap">kanban-board.tsx</p>
+<pre><code><span class="kw">const</span> [optimistic, applyMove] = <span class="fn">useOptimistic</span>(
+  applications,                              <span class="cm"># the real data from the server</span>
+  (state, move) =&gt;                           <span class="cm"># how to compute the temporary view</span>
+    state.<span class="fn">map</span>((a) =&gt; (a.id === move.id ? { ...a, status: move.status } : a)),
+);</code></pre>
+  <p>We render <code class="k">optimistic</code> (not the raw prop). When a drag happens, <code class="k">applyMove</code> instantly produces a version of the list with that card in its new column, so the UI updates the moment you drop. Meanwhile the server action saves the change and calls <code class="k">revalidatePath("/board")</code>, which sends down fresh real data. Once that arrives, <code class="k">useOptimistic</code> automatically discards the temporary view and shows the confirmed truth.</p>
+  <div class="box why">
+    <span class="lbl">The safety net</span>
+    <p>If the save ever failed, <code class="k">useOptimistic</code> would snap the card back to where it really is, because the optimistic view only lives as long as the pending action. The user is never shown a lie for longer than the request takes. This is the honest way to do "instant" UI.</p>
+  </div>
+  <div class="box gotcha">
+    <span class="lbl">Gotcha</span>
+    <p>Optimistic updates must be dispatched inside a transition (or a server action call). We wrap <code class="k">applyMove</code> and the <code class="k">await updateApplicationStatus</code> together in <code class="k">startTransition</code>, so React ties the temporary state to the lifetime of that save.</p>
+  </div>
+  <div class="box interview">
+    <span class="lbl">Interview</span>
+    <p>"How do you make a drag feel instant without lying to the user?" Answer: optimistic UI with useOptimistic, tied to the server action inside a transition, so a failed save reverts automatically. The status update on the server is still a scoped updateMany, so the security story from Phase 3 carries straight over.</p>
+  </div>
+</section>
+
+<section id="selftest5">
+  <h2>36. Phase 5 self-test <a href="#use" class="toplink">top</a></h2>
+  <details><summary class="q">What do the draggable id and droppable id represent in our board?</summary>
+  The draggable id on each card is the application id. The droppable id on each column is the status string. So a drop tells us exactly which application to move to which status.</details>
+
+  <details><summary class="q">Why is the board a client component but the data still fetched on the server?</summary>
+  Drag and drop needs browser interactivity (client), but the database read must be server-side and user-scoped. The server component (board/page.tsx) fetches with listApplications(user.id) and passes the minimal card data as a prop to the client KanbanBoard.</details>
+
+  <details><summary class="q">What is an optimistic update and which hook implements it here?</summary>
+  Moving the card in the UI immediately while the save happens in the background. React's useOptimistic computes a temporary view from the real data; when the server revalidates, the temporary view is discarded for the confirmed data. A failed save reverts automatically.</details>
+
+  <details><summary class="q">Why use a drag handle instead of making the whole card draggable?</summary>
+  The card body is a link to the detail page. If the whole card were draggable, a click could accidentally start a drag. Putting the drag listeners only on the grip icon keeps both clicking and dragging reliable.</details>
+
+  <details><summary class="q">Does the kanban weaken the authorization from earlier phases?</summary>
+  No. Dropping a card calls updateApplicationStatus, which is a scoped updateMany({ where: { id, userId } }). A user still cannot change the status of an application they do not own; the drag is just a nicer trigger for the same guarded write.</details>
+
+  <details><summary class="q">Why did we pick @dnd-kit?</summary>
+  It is modern, maintained, and accessible (pointer, touch, and keyboard). react-beautiful-dnd is deprecated, and native HTML5 drag and drop has poor touch support.</details>
+
+  <hr class="soft">
+  <p style="color:var(--faint);font-size:13px;">End of Phase 5. Next, Phase 6 adds the dashboard: applications over time, response rate, and conversion through each stage.</p>
 </section>
 
 </main>
