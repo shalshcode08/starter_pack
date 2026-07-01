@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "@/auth.config";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
+import { createGuestUser } from "@/lib/guest";
 import { loginSchema } from "@/lib/validations/auth";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -21,7 +22,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await verifyPassword(password, user.passwordHash);
         if (!valid) return null;
 
-        return { id: user.id, email: user.email, name: user.name };
+        return { id: user.id, email: user.email, name: user.name, isGuest: user.isGuest };
+      },
+    }),
+    Credentials({
+      id: "guest",
+      name: "Guest",
+      credentials: {},
+      async authorize() {
+        const user = await createGuestUser();
+        return { id: user.id, email: user.email, name: user.name, isGuest: true };
       },
     }),
   ],

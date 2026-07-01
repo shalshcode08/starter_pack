@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
 const AUTH_PAGES = ["/login", "/signup"];
+const PUBLIC_PAGES = ["/"];
 const DEFAULT_REDIRECT = "/board";
 
 export const authConfig = {
@@ -20,11 +21,16 @@ export const authConfig = {
         return true;
       }
 
+      if (PUBLIC_PAGES.includes(nextUrl.pathname)) {
+        return true;
+      }
+
       return isLoggedIn;
     },
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.isGuest = user.isGuest ?? false;
       }
       return token;
     },
@@ -32,6 +38,7 @@ export const authConfig = {
       if (token.id) {
         session.user.id = token.id as string;
       }
+      session.user.isGuest = Boolean(token.isGuest);
       return session;
     },
   },

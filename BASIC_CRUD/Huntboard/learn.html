@@ -190,6 +190,12 @@
     <a href="#metrics">38. The metrics explained</a>
     <a href="#charts">39. Server computes, client charts</a>
     <a href="#selftest6">40. Phase 6 self-test</a>
+
+    <div class="grp">Phase 7 - Guest + polish</div>
+    <a href="#guest">41. One-click guest login</a>
+    <a href="#seeding">42. Seeding demo data</a>
+    <a href="#publicroutes">43. Public vs private routes</a>
+    <a href="#selftest7">44. Phase 7 self-test</a>
   </nav>
 </aside>
 
@@ -1427,7 +1433,106 @@ AUTH_SECRET="...generated with: openssl rand -base64 33..."</code></pre>
   By week: we find the Monday of each of the last 8 weeks and count applications whose createdAt falls in each 7-day window, all in plain JavaScript on the server.</details>
 
   <hr class="soft">
-  <p style="color:var(--faint);font-size:13px;">End of Phase 6. Next, Phase 7 adds one-click guest login with seeded demo data and a visual polish pass, then Phase 8 deploys to Vercel.</p>
+  <p style="color:var(--faint);font-size:13px;">End of Phase 6. Phase 7 continues below.</p>
+</section>
+
+<section id="guest">
+  <h2>41. One-click guest login <a href="#use" class="toplink">top</a></h2>
+  <p>A recruiter will spend about thirty seconds on your project. If they have to sign up before seeing anything, most will leave. So the single highest-value feature is a button that drops them straight into a fully populated app. That is the guest login.</p>
+
+  <h3>The design: a fresh sandbox per click</h3>
+  <p>Every time someone clicks "Try the demo", we create a <strong>brand new guest user</strong> with its own copy of sample data. So two visitors never step on each other, and anyone can drag, edit, and delete freely without affecting the real thing.</p>
+  <div class="box why">
+    <span class="lbl">Why a fresh user instead of one shared demo account</span>
+    <p>A single shared account would let one visitor delete another's view mid-demo, and their edits would pile up. A fresh, isolated guest per click is predictable and safe. We mark these users with an <code class="k">isGuest</code> flag so they are easy to identify and clean up later.</p>
+  </div>
+
+  <h3>How it plugs into the existing auth</h3>
+  <p>We add a <strong>second Credentials provider</strong> to NextAuth, with the id <code class="k">"guest"</code>. Unlike the email/password one, it takes no input - its <code class="k">authorize</code> just creates the guest and returns it:</p>
+  <p class="codecap">auth.ts</p>
+<pre><code><span class="fn">Credentials</span>({
+  id: <span class="st">"guest"</span>,
+  credentials: {},
+  <span class="kw">async</span> <span class="fn">authorize</span>() {
+    <span class="kw">const</span> user = <span class="kw">await</span> <span class="fn">createGuestUser</span>();       <span class="cm"># make user + seed data</span>
+    <span class="kw">return</span> { id: user.id, email: user.email, name: user.name, isGuest: <span class="kw">true</span> };
+  },
+}),</code></pre>
+  <p>Because it is just another provider, everything downstream (JWT session, the <code class="k">proxy</code> guard, per-user scoping) works exactly the same. The guest is a real, logged-in user - it simply has no password and is flagged.</p>
+
+  <h3>Knowing a user is a guest</h3>
+  <p>We thread the <code class="k">isGuest</code> flag through the same JWT pipeline that carried the user id (section 13): <code class="k">authorize</code> returns it, the <code class="k">jwt</code> callback stores it on the token, the <code class="k">session</code> callback exposes it as <code class="k">session.user.isGuest</code>. The app layout reads that to show a small "you are exploring a demo" banner with a link to sign up.</p>
+</section>
+
+<section id="seeding">
+  <h2>42. Seeding demo data <a href="#use" class="toplink">top</a></h2>
+  <p><strong>Seeding</strong> means filling a fresh account with believable starter content so the app does not look empty. Empty dashboards and blank boards make a great product look broken; seeded data makes it look alive.</p>
+  <p><code class="k">createGuestUser()</code> creates the user, then loops over a hand-written list of about ten realistic applications (Stripe, Vercel, Notion, and so on) spread across all six statuses, each with a few timeline events. It uses Prisma's <strong>nested create</strong> to make an application and its events in one call:</p>
+  <p class="codecap">lib/guest.ts</p>
+<pre><code><span class="kw">await</span> prisma.application.<span class="fn">create</span>({
+  data: {
+    ...fields,
+    userId: user.id,
+    events: { create: events },   <span class="cm"># create the child events in the same call</span>
+  },
+});</code></pre>
+  <div class="box why">
+    <span class="lbl">Two thoughtful details</span>
+    <p><strong>Spread-out dates:</strong> each demo application's <code class="k">createdAt</code> is set to a different point over the past several weeks, so the "applications over time" chart actually shows a trend instead of one tall bar. <strong>No real password:</strong> the guest's <code class="k">passwordHash</code> is a sentinel string that can never match <code class="k">bcrypt.compare</code>, so nobody can log into a guest account by guessing - it is only reachable through the guest button.</p>
+  </div>
+  <div class="box interview">
+    <span class="lbl">Interview</span>
+    <p>"The guest login provisions an isolated user and seeds it with date-spread demo data via a nested Prisma create, so the board and dashboard look real on first load." This shows product sense, not just coding - you thought about the person evaluating the app.</p>
+  </div>
+</section>
+
+<section id="publicroutes">
+  <h2>43. Public vs private routes, and polish <a href="#use" class="toplink">top</a></h2>
+  <p>Until now every page required login. Phase 7 adds a public <strong>landing page</strong> at <code class="k">/</code> with the pitch, the demo button, and sign in / sign up links. That means the auth guard needs an exception.</p>
+  <p>Recall the <code class="k">authorized</code> callback (section 13) that the proxy runs on every request. We add a small allow-list:</p>
+  <p class="codecap">auth.config.ts</p>
+<pre><code><span class="kw">const</span> PUBLIC_PAGES = [<span class="st">"/"</span>];
+<span class="cm">// ...inside authorized():</span>
+<span class="kw">if</span> (PUBLIC_PAGES.<span class="fn">includes</span>(nextUrl.pathname)) <span class="kw">return true</span>;  <span class="cm"># anyone may see the landing</span>
+<span class="kw">return</span> isLoggedIn;                                        <span class="cm"># everything else still gated</span></code></pre>
+  <p>So the routes now fall into three groups:</p>
+  <table>
+    <tr><th>Group</th><th>Pages</th><th>Rule</th></tr>
+    <tr><td>Public</td><td><code>/</code></td><td>Anyone</td></tr>
+    <tr><td>Auth</td><td><code>/login</code>, <code>/signup</code></td><td>Anyone, but logged-in users are bounced to /board</td></tr>
+    <tr><td>Private</td><td><code>/board</code>, <code>/applications*</code>, <code>/dashboard</code></td><td>Login required</td></tr>
+  </table>
+
+  <h3>The rest of the polish</h3>
+  <ul>
+    <li><strong>Loading state on the demo button:</strong> creating and seeding a guest takes a moment, so the button uses <code class="k">useFormStatus</code> to show "Loading demo..." while it works.</li>
+    <li><strong>Real page title:</strong> the root layout metadata now says "Huntboard - Track your job search" instead of the scaffold default, which is what shows in the browser tab and link previews.</li>
+    <li><strong>A proper README</strong> with the feature list, stack, architecture highlights, and local setup - the first thing a recruiter reads on GitHub.</li>
+  </ul>
+</section>
+
+<section id="selftest7">
+  <h2>44. Phase 7 self-test <a href="#use" class="toplink">top</a></h2>
+  <details><summary class="q">Why create a fresh guest user per click instead of one shared demo account?</summary>
+  Isolation. A shared account would let visitors clobber each other's view and accumulate edits. A fresh, isGuest-flagged user per click is safe and predictable, and flagged users are easy to clean up.</details>
+
+  <details><summary class="q">How does guest login reuse the existing auth system?</summary>
+  It is a second Credentials provider with id "guest" whose authorize creates the guest and returns it. Everything downstream (JWT session, proxy guard, per-user scoping) works identically because the guest is a real logged-in user, just passwordless and flagged.</details>
+
+  <details><summary class="q">How does the app know to show the demo banner?</summary>
+  The isGuest flag is threaded through the JWT pipeline (authorize to jwt callback to session callback) and read as session.user.isGuest in the app layout.</details>
+
+  <details><summary class="q">Why spread the demo applications' createdAt dates over several weeks?</summary>
+  So the "applications over time" chart shows a real trend instead of a single bar, making the seeded dashboard look genuine.</details>
+
+  <details><summary class="q">How can a guest account not be logged into by guessing?</summary>
+  Its passwordHash is a sentinel string that never matches bcrypt.compare, and its email is a random address. The account is only reachable through the guest button, never the password form.</details>
+
+  <details><summary class="q">How did we make the landing page public without opening up the rest of the app?</summary>
+  We added a PUBLIC_PAGES allow-list ("/") in the authorized callback that returns true for those paths; every other non-auth route still returns isLoggedIn, so it stays gated.</details>
+
+  <hr class="soft">
+  <p style="color:var(--faint);font-size:13px;">End of Phase 7. The final phase, Phase 8, deploys the app to Vercel with the production Neon branch and the pooled connection.</p>
 </section>
 
 </main>

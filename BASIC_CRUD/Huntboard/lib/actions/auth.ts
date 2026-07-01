@@ -69,6 +69,10 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
   }
 }
 
+export async function guestLogin() {
+  await signIn("guest", { redirectTo: DEFAULT_REDIRECT });
+}
+
 export async function logout() {
   await signOut({ redirectTo: "/login" });
 }
