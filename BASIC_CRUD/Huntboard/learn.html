@@ -184,6 +184,12 @@
     <a href="#serverclient">34. Server-to-client data</a>
     <a href="#optimistic">35. Optimistic updates</a>
     <a href="#selftest5">36. Phase 5 self-test</a>
+
+    <div class="grp">Phase 6 - Dashboard</div>
+    <a href="#aggregation">37. Deriving metrics</a>
+    <a href="#metrics">38. The metrics explained</a>
+    <a href="#charts">39. Server computes, client charts</a>
+    <a href="#selftest6">40. Phase 6 self-test</a>
   </nav>
 </aside>
 
@@ -1317,7 +1323,111 @@ AUTH_SECRET="...generated with: openssl rand -base64 33..."</code></pre>
   It is modern, maintained, and accessible (pointer, touch, and keyboard). react-beautiful-dnd is deprecated, and native HTML5 drag and drop has poor touch support.</details>
 
   <hr class="soft">
-  <p style="color:var(--faint);font-size:13px;">End of Phase 5. Next, Phase 6 adds the dashboard: applications over time, response rate, and conversion through each stage.</p>
+  <p style="color:var(--faint);font-size:13px;">End of Phase 5. Phase 6 continues below.</p>
+</section>
+
+<section id="aggregation">
+  <h2>37. Deriving metrics from raw data <a href="#use" class="toplink">top</a></h2>
+  <p>Every phase so far stored or displayed rows. The dashboard is different: it <strong>computes</strong> new information that is not stored anywhere. This is the most "engineering" part of the app, because the value is in the calculation, not the storage.</p>
+  <p>All the math happens in one server-side function, <code class="k">getDashboardStats(userId)</code>. It reads the user's applications once, then reduces them into numbers.</p>
+  <p class="codecap">lib/data/stats.ts (the shape)</p>
+<pre><code><span class="kw">const</span> applications = <span class="kw">await</span> prisma.application.<span class="fn">findMany</span>({
+  where: { userId },                       <span class="cm"># still scoped to the owner</span>
+  select: { status: <span class="kw">true</span>, createdAt: <span class="kw">true</span> },   <span class="cm"># only the columns the math needs</span>
+});
+
+<span class="cm">// count how many applications sit in each status</span>
+<span class="kw">for</span> (<span class="kw">const</span> app <span class="kw">of</span> applications) statusCounts[app.status] += 1;</code></pre>
+  <div class="box why">
+    <span class="lbl">Why compute on the server, and why select only two columns</span>
+    <p>Computing on the server means the raw rows never leave it - the browser receives only the finished numbers, which is smaller and does not leak data. Selecting just <code class="k">status</code> and <code class="k">createdAt</code> (the only fields the metrics use) keeps the query lean; there is no reason to pull company names or notes to count statuses.</p>
+  </div>
+  <div class="box interview">
+    <span class="lbl">Interview</span>
+    <p>"The dashboard aggregates in a single query and computes rates and a funnel in memory, all user-scoped." Aggregation and derived views are what separate a data-entry app from a product that gives insight - exactly the "computed views" an interviewer looks for.</p>
+  </div>
+</section>
+
+<section id="metrics">
+  <h2>38. The metrics, explained plainly <a href="#use" class="toplink">top</a></h2>
+
+  <h3>Response rate</h3>
+  <p>Of the jobs you actually applied to, how many did the employer respond to (in any way, including a rejection)?</p>
+  <ul>
+    <li><strong>Applied</strong> = every application except those still in Wishlist (Wishlist means you have not applied yet).</li>
+    <li><strong>Responded</strong> = anything that moved to OA, Interview, Offer, <em>or</em> Rejected. A rejection is still a response.</li>
+    <li><strong>Response rate</strong> = responded / applied, as a percentage.</li>
+  </ul>
+  <p>Interview rate and offer rate follow the same idea (reached interview-or-beyond / applied, and offers / applied).</p>
+
+  <h3>The pipeline funnel</h3>
+  <p>A funnel shows how many applications reached each successive stage: Applied, then OA, then Interview, then Offer. Each step is a subset of the one before, so the bars shrink - that shrinking is where you "leak" candidates.</p>
+  <div class="box gotcha">
+    <span class="lbl">An honest limitation</span>
+    <p>We only store each application's <em>current</em> status, not its full history of stage changes. So the funnel is computed from the current stage: an application at Offer is counted as having reached Applied, OA, Interview, and Offer. This is why the chart is labelled "based on current stage." A fully accurate funnel would require reading the event timeline (which does record transitions), and we could switch to that later. Being upfront about this tradeoff is exactly the kind of judgment worth showing.</p>
+  </div>
+
+  <h3>Applications over time</h3>
+  <p>We bucket applications by the week they were added, for the last 8 weeks, so you can see your activity trend. The bucketing is plain JavaScript: find the Monday of each week, then count applications whose <code class="k">createdAt</code> falls in that 7-day window.</p>
+<pre><code><span class="kw">function</span> <span class="fn">startOfWeek</span>(date) {
+  <span class="kw">const</span> d = <span class="kw">new</span> <span class="fn">Date</span>(date);
+  <span class="kw">const</span> mondayOffset = (d.<span class="fn">getDay</span>() + 6) % 7;  <span class="cm"># days since Monday</span>
+  d.<span class="fn">setDate</span>(d.<span class="fn">getDate</span>() - mondayOffset);   <span class="cm"># rewind to Monday</span>
+  d.<span class="fn">setHours</span>(0, 0, 0, 0);
+  <span class="kw">return</span> d;
+}</code></pre>
+</section>
+
+<section id="charts">
+  <h2>39. Server computes, client draws <a href="#use" class="toplink">top</a></h2>
+  <p>Charts are visual and interactive (hover tooltips, responsive resizing), so they must be <strong>client components</strong>. But the numbers come from the server. Same split as the kanban: the server does the data work, the client does the interaction.</p>
+  <div class="flow">
+<pre>
+  dashboard/page.tsx  (server)
+    getDashboardStats(user.id)  →  { total, responseRate, funnel, overTime, ... }
+        │  passes numbers as props
+        ▼
+  &lt;OverTimeChart data={overTime} /&gt;   &lt;FunnelChart data={funnel} /&gt;   (client, Recharts)
+</pre>
+  </div>
+
+  <h3>The charting library</h3>
+  <p>We use <strong>Recharts</strong>, a popular React charting library. You describe a chart as JSX components (<code class="k">BarChart</code>, <code class="k">Bar</code>, <code class="k">XAxis</code>, <code class="k">Tooltip</code>) and it draws SVG. Each chart file starts with <code class="k">"use client"</code> because Recharts measures the container in the browser to size itself.</p>
+  <p class="codecap">components/dashboard/over-time-chart.tsx (essence)</p>
+<pre><code>&lt;ResponsiveContainer width="100%" height={260}&gt;
+  &lt;BarChart data={data}&gt;
+    &lt;XAxis dataKey="label" /&gt;
+    &lt;YAxis allowDecimals={<span class="kw">false</span>} /&gt;   <span class="cm"># counts are whole numbers</span>
+    &lt;Tooltip /&gt;
+    &lt;Bar dataKey="count" /&gt;
+  &lt;/BarChart&gt;
+&lt;/ResponsiveContainer&gt;</code></pre>
+  <div class="box why">
+    <span class="lbl">Why Recharts over building charts by hand</span>
+    <p>Simple bars can be built with plain CSS, but axes, tooltips, responsiveness, and accessibility add up fast. Recharts handles them and is a recognized tool. The tradeoff is a dependency; we accept it because the polish and the resume signal are worth more here than shaving a package. If a chart were truly trivial we would still hand-roll it.</p>
+  </div>
+  <p>The stat cards (Total, Response rate, Interview rate, Offer rate) are plain server components - just numbers in boxes, no interactivity needed, so no reason to make them client components.</p>
+</section>
+
+<section id="selftest6">
+  <h2>40. Phase 6 self-test <a href="#use" class="toplink">top</a></h2>
+  <details><summary class="q">Why compute the dashboard metrics on the server instead of the client?</summary>
+  The raw rows stay on the server (smaller payload, no data leak), the query is user-scoped, and the browser receives only the finished numbers. getDashboardStats does one findMany and reduces it in memory.</details>
+
+  <details><summary class="q">How is response rate defined here?</summary>
+  Responded (reached OA, Interview, Offer, or Rejected - a rejection counts as a response) divided by Applied (everything except Wishlist), as a percentage.</details>
+
+  <details><summary class="q">What is the honest limitation of our funnel and why does it exist?</summary>
+  We store only the current status, not stage history, so the funnel is computed from the current stage (an app at Offer is counted as having passed the earlier stages). A fully accurate funnel would read the event timeline. The chart is labelled "based on current stage" to be transparent.</details>
+
+  <details><summary class="q">Why are the chart components client components but the stat cards are not?</summary>
+  Charts need browser interactivity and container measurement (Recharts), so they are "use client". Stat cards are static numbers with no interactivity, so they stay server components.</details>
+
+  <details><summary class="q">How is "applications over time" bucketed?</summary>
+  By week: we find the Monday of each of the last 8 weeks and count applications whose createdAt falls in each 7-day window, all in plain JavaScript on the server.</details>
+
+  <hr class="soft">
+  <p style="color:var(--faint);font-size:13px;">End of Phase 6. Next, Phase 7 adds one-click guest login with seeded demo data and a visual polish pass, then Phase 8 deploys to Vercel.</p>
 </section>
 
 </main>
