@@ -2,7 +2,7 @@
 
 A job-application tracker that models your search as a pipeline. Every application moves through stages, carries a timeline of events, and rolls up into stats that show what is working.
 
-> Live demo: _add your Vercel URL here_
+> Live demo: https://huntboard.vercel.app
 >
 > One click into a populated demo board - no signup needed.
 

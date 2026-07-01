@@ -196,6 +196,11 @@
     <a href="#seeding">42. Seeding demo data</a>
     <a href="#publicroutes">43. Public vs private routes</a>
     <a href="#selftest7">44. Phase 7 self-test</a>
+
+    <div class="grp">Phase 8 - Deploy</div>
+    <a href="#deploy">45. Deploying to Vercel</a>
+    <a href="#poolvsdirect">46. Pooled vs direct in prod</a>
+    <a href="#selftest8">47. Phase 8 self-test</a>
   </nav>
 </aside>
 
@@ -1532,7 +1537,83 @@ AUTH_SECRET="...generated with: openssl rand -base64 33..."</code></pre>
   We added a PUBLIC_PAGES allow-list ("/") in the authorized callback that returns true for those paths; every other non-auth route still returns isLoggedIn, so it stays gated.</details>
 
   <hr class="soft">
-  <p style="color:var(--faint);font-size:13px;">End of Phase 7. The final phase, Phase 8, deploys the app to Vercel with the production Neon branch and the pooled connection.</p>
+  <p style="color:var(--faint);font-size:13px;">End of Phase 7. Phase 8 continues below.</p>
+</section>
+
+<section id="deploy">
+  <h2>45. Deploying to Vercel <a href="#use" class="toplink">top</a></h2>
+  <p>Deployment means taking the code that runs on your laptop and putting it on a server the whole world can reach. We use <strong>Vercel</strong>, the company that makes Next.js, so the integration is seamless: connect the GitHub repo, and every push to <code class="k">main</code> builds and goes live automatically.</p>
+  <p>The app is live at <a class="inline" href="https://huntboard.vercel.app">huntboard.vercel.app</a>.</p>
+
+  <h3>The pieces that had to line up</h3>
+  <table>
+    <tr><th>Concern</th><th>How we handled it</th></tr>
+    <tr><td>Monorepo</td><td>Huntboard lives in a subfolder (<code>BASIC_CRUD/Huntboard</code>) of a larger repo, so Vercel's <strong>Root Directory</strong> setting points there.</td></tr>
+    <tr><td>Build command</td><td>Vercel runs <code>pnpm build</code>, which is <code>prisma generate &amp;&amp; next build</code> - the client is regenerated on the server before compiling.</td></tr>
+    <tr><td>Secrets</td><td><code>DATABASE_URL</code> and <code>AUTH_SECRET</code> are set as Vercel environment variables, never committed. A fresh production <code>AUTH_SECRET</code> was generated (different from dev).</td></tr>
+    <tr><td>Production database</td><td>The production Neon branch was migrated with <code>prisma migrate deploy</code> before the first deploy, so the tables existed when the app went live.</td></tr>
+  </table>
+  <div class="box why">
+    <span class="lbl">Why migrate deploy, not migrate dev, in production</span>
+    <p><code class="k">migrate dev</code> can generate new migration files and needs a shadow database - fine for development, dangerous in production. <code class="k">migrate deploy</code> only <em>applies</em> the migration files that already exist, in order, and nothing else. It is the safe, idempotent command for production and CI.</p>
+  </div>
+  <div class="box gotcha">
+    <span class="lbl">Gotcha: env vars at build time</span>
+    <p>Our <code class="k">lib/prisma.ts</code> throws if <code class="k">DATABASE_URL</code> is missing, and that module can load during the build. So the variable must be set in Vercel for the build, not just at runtime. Setting it for the Production environment covers both.</p>
+  </div>
+</section>
+
+<section id="poolvsdirect">
+  <h2>46. Pooled vs direct connections in production <a href="#use" class="toplink">top</a></h2>
+  <p>This is the one genuinely new idea in deployment. Recall from section 7 that Neon offers two connection strings: <strong>direct</strong> and <strong>pooled</strong>. In production they play different roles.</p>
+  <div class="flow">
+<pre>
+  Vercel serverless functions            Neon
+  (many short-lived instances)
+        │  runtime queries
+        ▼
+  DATABASE_URL = POOLED  ────────────▶  PgBouncer pooler  ──▶  Postgres
+                                        (shares a small set of
+                                         real connections)
+
+  One-off migration (from your laptop)
+  DATABASE_URL = DIRECT  ─────────────────────────────────▶  Postgres
+</pre>
+  </div>
+  <div class="box why">
+    <span class="lbl">Why the runtime needs the pooler</span>
+    <p>Serverless means each request can spin up a fresh function instance. If every instance opened its own direct database connection, a traffic spike would blow past Postgres's connection limit almost instantly. The pooler (PgBouncer) keeps a small set of real connections and lends them out, so thousands of function instances share a handful of connections. That is why Vercel's <code class="k">DATABASE_URL</code> is the <strong>pooled</strong> string.</p>
+  </div>
+  <div class="box why">
+    <span class="lbl">Why migrations still use direct</span>
+    <p>Migrations run schema-altering statements and rely on session features that a transaction pooler does not support. So the one-time <code class="k">migrate deploy</code> we ran used the <strong>direct</strong> string. Different job, different connection.</p>
+  </div>
+  <p>The application code did not change at all between dev and prod - only the value of the <code class="k">DATABASE_URL</code> environment variable. Dev points at the development Neon branch; production points at the pooled production branch. Same code, different config. That separation of code from configuration is a core deployment principle.</p>
+  <div class="box interview">
+    <span class="lbl">Interview</span>
+    <p>"In production the serverless runtime uses Neon's pooled connection so concurrent functions do not exhaust Postgres connections, while migrations use the direct connection. Code stays identical across environments; only the DATABASE_URL differs." That answer shows you understand serverless database access, which trips up a lot of people.</p>
+  </div>
+</section>
+
+<section id="selftest8">
+  <h2>47. Phase 8 self-test <a href="#use" class="toplink">top</a></h2>
+  <details><summary class="q">Why set Vercel's Root Directory to BASIC_CRUD/Huntboard?</summary>
+  The app is one project inside a larger monorepo. Root Directory tells Vercel which subfolder to build and deploy.</details>
+
+  <details><summary class="q">Why use migrate deploy in production instead of migrate dev?</summary>
+  migrate deploy only applies existing migration files in order, idempotently, with no shadow database and no new file generation. migrate dev is for authoring migrations locally and is unsafe in production.</details>
+
+  <details><summary class="q">Why does the serverless runtime use the pooled connection but migrations use the direct one?</summary>
+  Serverless spins up many function instances; without pooling they would each open a direct connection and exhaust Postgres's limit, so runtime uses PgBouncer (pooled). Migrations need session-level features a transaction pooler does not support, so they use the direct connection.</details>
+
+  <details><summary class="q">What is the only difference between the dev and production app?</summary>
+  Configuration, not code. The DATABASE_URL (and AUTH_SECRET) environment variables differ - dev points at the development Neon branch, production at the pooled production branch. The application code is identical.</details>
+
+  <details><summary class="q">Why must DATABASE_URL be available at build time on Vercel, not just runtime?</summary>
+  lib/prisma.ts throws if DATABASE_URL is missing and can be loaded during the build, so the variable has to be set for the build environment. Setting it for Production covers build and runtime.</details>
+
+  <hr class="soft">
+  <p style="color:var(--faint);font-size:13px;">All eight phases complete. Huntboard is built, documented, and live at huntboard.vercel.app.</p>
 </section>
 
 </main>
