@@ -6,7 +6,23 @@ A job-application tracker that models your search as a pipeline. Every applicati
 >
 > One click into a populated demo board - no signup needed.
 
-<!-- Add screenshots here: board, application detail, dashboard -->
+## Screenshots
+
+**Landing**
+
+![Landing page](docs/screenshots/landing.png)
+
+**Kanban board** (drag-and-drop across stages)
+
+![Kanban board](docs/screenshots/board.png)
+
+**Applications list** (filter by status)
+
+![Applications list](docs/screenshots/applications.png)
+
+**Dashboard** (response rate, funnel, activity over time)
+
+![Dashboard](docs/screenshots/dashboard.png)
 
 ## Features
 
