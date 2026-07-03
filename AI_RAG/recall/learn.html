@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recall - Learn</title>
+<style>
+  :root {
+    --bg: #0c0e13; --content-bg: #0c0e13; --sidebar-bg: #0a0c11;
+    --panel: #14171f; --border: #222736; --border-soft: #1b1f2b;
+    --text: #e7e9ef; --text-dim: #99a1b3; --text-faint: #6b7280;
+    --accent: #7dd3c0; --accent-2: #8ea9ff; --code-bg: #0f131b; --warn: #e7b455;
+    --sidebar-w: 288px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #ffffff; --content-bg: #ffffff; --sidebar-bg: #fafbfd;
+      --panel: #f7f8fb; --border: #e4e7ef; --border-soft: #eef0f5;
+      --text: #1a1d27; --text-dim: #55606f; --text-faint: #8a92a0;
+      --accent: #1f8a72; --accent-2: #3855c9; --code-bg: #f4f6fa; --warn: #a5690b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c0e13; --content-bg: #0c0e13; --sidebar-bg: #0a0c11;
+    --panel: #14171f; --border: #222736; --border-soft: #1b1f2b;
+    --text: #e7e9ef; --text-dim: #99a1b3; --text-faint: #6b7280;
+    --accent: #7dd3c0; --accent-2: #8ea9ff; --code-bg: #0f131b; --warn: #e7b455;
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --content-bg: #ffffff; --sidebar-bg: #fafbfd;
+    --panel: #f7f8fb; --border: #e4e7ef; --border-soft: #eef0f5;
+    --text: #1a1d27; --text-dim: #55606f; --text-faint: #8a92a0;
+    --accent: #1f8a72; --accent-2: #3855c9; --code-bg: #f4f6fa; --warn: #a5690b;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    line-height: 1.7; font-size: 16px;
+  }
+
+  /* ---------- Layout ---------- */
+  .layout { display: flex; align-items: flex-start; }
+  .sidebar {
+    width: var(--sidebar-w); flex-shrink: 0; position: sticky; top: 0;
+    height: 100vh; overflow-y: auto; background: var(--sidebar-bg);
+    border-right: 1px solid var(--border); padding: 28px 20px 40px;
+  }
+  .content-wrap { flex: 1; min-width: 0; display: flex; justify-content: center; }
+  .content { width: 100%; max-width: 760px; padding: 56px 40px 120px; }
+
+  /* ---------- Sidebar ---------- */
+  .brand { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; padding: 0 10px; }
+  .brand .logo { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
+  .brand .tag { font-size: 0.7rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; }
+  .brand-sub { font-size: 0.8rem; color: var(--text-faint); padding: 0 10px; margin-bottom: 26px; }
+  .nav-group { margin-bottom: 22px; }
+  .nav-group > .nav-head {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--text-faint); font-weight: 600; padding: 0 10px; margin-bottom: 8px;
+  }
+  .nav a {
+    display: block; padding: 6px 10px; border-radius: 7px; text-decoration: none;
+    color: var(--text-dim); font-size: 0.9rem; border-left: 2px solid transparent;
+  }
+  .nav a:hover { background: var(--panel); color: var(--text); }
+  .nav a.sub { padding-left: 22px; font-size: 0.86rem; color: var(--text-faint); }
+  .nav a.active { color: var(--accent); border-left-color: var(--accent); background: var(--panel); }
+
+  /* ---------- Content typography ---------- */
+  .doc-eyebrow { color: var(--accent); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+  h1 { font-size: 2.2rem; letter-spacing: -0.025em; margin: 6px 0 10px; line-height: 1.15; }
+  .lede { color: var(--text-dim); font-size: 1.1rem; margin-bottom: 8px; }
+  .doc-section { padding-top: 40px; margin-top: 24px; border-top: 1px solid var(--border-soft); }
+  .doc-section:first-of-type { border-top: none; }
+  h2 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 0 0 6px; scroll-margin-top: 24px; }
+  h2 .h2-eyebrow { display: block; font-size: 0.7rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 8px; font-weight: 600; }
+  h3 { font-size: 1.22rem; margin: 34px 0 8px; scroll-margin-top: 24px; letter-spacing: -0.01em; }
+  h4 { font-size: 0.98rem; margin: 24px 0 4px; color: var(--accent-2); }
+  .section-kicker { color: var(--text-faint); font-size: 0.95rem; margin: 0 0 4px; font-style: italic; }
+  p { margin: 12px 0; }
+  ul, ol { padding-left: 24px; }
+  li { margin-bottom: 7px; }
+  strong { color: var(--text); font-weight: 600; }
+
+  code {
+    background: var(--code-bg); border: 1px solid var(--border-soft); padding: 1px 6px;
+    border-radius: 5px; font-size: 0.85em; font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto; margin: 16px 0; font-size: 0.82rem; line-height: 1.55;
+  }
+  pre code { background: none; border: none; padding: 0; }
+
+  .callout { padding: 14px 18px; border-radius: 0 9px 9px 0; margin: 18px 0; font-size: 0.95rem; }
+  .callout .callout-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; margin-bottom: 4px; }
+  .callout.anno { border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .callout.anno .callout-label { color: var(--accent); }
+  .callout.why { border-left: 3px solid var(--accent-2); background: color-mix(in srgb, var(--accent-2) 8%, transparent); }
+  .callout.why .callout-label { color: var(--accent-2); }
+  .callout ul { margin: 6px 0 0; }
+
+  .rejected { border: 1px solid var(--border); border-radius: 11px; padding: 6px 20px 16px; margin: 20px 0; background: var(--panel); }
+  .rejected .callout-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; margin: 14px 0 2px; color: var(--warn); }
+  .rejected .opt { margin-top: 12px; font-size: 0.95rem; }
+  .rejected .opt b { color: var(--text); }
+
+  .status-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 8px; }
+  .chip { font-size: 0.75rem; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); background: var(--panel); }
+  .chip b { color: var(--text); }
+
+  .mobile-bar { display: none; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .content { padding: 32px 22px 90px; }
+    .mobile-bar {
+      display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10;
+      background: var(--sidebar-bg); border-bottom: 1px solid var(--border);
+      padding: 12px 20px; font-weight: 700; letter-spacing: -0.01em;
+    }
+    .mobile-bar .tag { font-size: 0.65rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; }
+    h1 { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="mobile-bar"><span>Recall</span><span class="tag">Learn</span></div>
+
+<div class="layout">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">Recall</span><span class="tag">Learn</span></div>
+    <div class="brand-sub">A build-along teaching doc</div>
+
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-head">Overview</div>
+        <a href="#intro">Introduction</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-head">Phase 0 - Foundation</div>
+        <a href="#phase0">Overview</a>
+        <a class="sub" href="#p0-bigpicture">The big picture (RAG)</a>
+        <a class="sub" href="#p0-database">The database (Neon)</a>
+        <a class="sub" href="#p0-pgvector">pgvector and embeddings</a>
+        <a class="sub" href="#p0-prisma">The translator (Prisma)</a>
+        <a class="sub" href="#p0-tools">The tools</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-head">Phase 1 - Data model</div>
+        <a href="#phase1">Overview</a>
+        <a class="sub" href="#p1-what">What a data model is</a>
+        <a class="sub" href="#p1-chunks">Why chunks</a>
+        <a class="sub" href="#p1-prisma">Expressing it in Prisma</a>
+        <a class="sub" href="#p1-vector">The vector column</a>
+        <a class="sub" href="#p1-rejected">Roads not taken</a>
+        <a class="sub" href="#p1-migrations">Migrations</a>
+        <a class="sub" href="#p1-singleton">The client singleton</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-head">Phase 2 - Authentication</div>
+        <a href="#phase2">Overview</a>
+        <a class="sub" href="#p2-what">What auth means here</a>
+        <a class="sub" href="#p2-strategy">Sessions: JWT vs database</a>
+        <a class="sub" href="#p2-rejected">Roads not taken</a>
+        <a class="sub" href="#p2-hashing">Hashing passwords</a>
+        <a class="sub" href="#p2-split">The edge/node split</a>
+        <a class="sub" href="#p2-flow">The sign-up flow</a>
+        <a class="sub" href="#p2-enforce">Enforcing ownership</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-head">Phase 3 - Study sets</div>
+        <a href="#phase3">Overview</a>
+        <a class="sub" href="#p3-what">What we are building</a>
+        <a class="sub" href="#p3-layers">The three layers</a>
+        <a class="sub" href="#p3-authz">Authorization in the query</a>
+        <a class="sub" href="#p3-actions">Server Actions and revalidation</a>
+        <a class="sub" href="#p3-bug">A real bug we caught</a>
+        <a class="sub" href="#p3-proof">Proving it holds</a>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===================== CONTENT ===================== -->
+  <div class="content-wrap">
+  <main class="content">
+
+    <div id="intro">
+      <div class="doc-eyebrow">Recall documentation</div>
+      <h1>Learn: how Recall is built</h1>
+      <p class="lede">A deep, plain-language walkthrough, one phase at a time. No prior knowledge assumed. Each phase explains <em>what</em> we did, <em>why</em> (including the roads not taken), and <em>how</em> it works with the real code.</p>
+      <div class="status-row">
+        <span class="chip">Phase 0 - <b>Done</b></span>
+        <span class="chip">Phase 1 - <b>Done</b></span>
+        <span class="chip">Phase 2 - <b>Done</b></span>
+        <span class="chip">Phase 3 - <b>Done</b></span>
+        <span class="chip">Phase 4 - <b>Up next</b></span>
+      </div>
+    </div>
+
+    <!-- ============================ PHASE 0 ============================ -->
+    <section class="doc-section" id="phase0">
+      <h2><span class="h2-eyebrow">Phase 0</span>Foundation and tooling</h2>
+      <p class="section-kicker">Getting a database, a way to talk to it, and the right tools in place before writing any features.</p>
+
+      <h3 id="p0-bigpicture">The big picture: what is this project, really?</h3>
+      <p>Recall lets a student upload their own PDFs (lecture notes, textbook chapters) and then <strong>ask questions and get answers drawn only from those PDFs</strong>, with a pointer to the exact page an answer came from. This kind of system has a name: <strong>RAG</strong>, short for "Retrieval-Augmented Generation." The idea in one sentence: instead of trusting an AI to answer from memory (where it can make things up), you first <em>retrieve</em> the relevant passages from the user's own documents, then ask the AI to <em>generate</em> an answer using only those passages.</p>
+      <p>For any of that to work, we need three foundations before we write a single feature: a place to store data (a database), a translator between our code and that database, and a set of build tools. That is all Phase 0 is.</p>
+
+      <h3 id="p0-database">Foundation 1: the database (PostgreSQL on Neon)</h3>
+      <p>A <strong>database</strong> is just an organized place to store information so you can find it again quickly. We use <strong>PostgreSQL</strong> ("Postgres"), a decades-old, extremely reliable database that professionals reach for by default.</p>
+      <p>But we do not run Postgres on our own computer or rent a server for it. We use <strong>Neon</strong>, a service that hosts a Postgres database for us in the cloud, for free. You give it a name, it gives you back a <strong>connection string</strong> - a single line of text that contains the address, username, and password all in one, like a full postal address for your database.</p>
+      <div class="callout why"><span class="callout-label">Why Neon specifically</span>Two reasons. First, it has a genuinely free tier, and this whole project has a hard rule of costing Rs 0. Second, and more importantly, Neon has a feature called <strong>branching</strong>: just like code branches in Git, you can have a "development" copy of your database that is separate from "production." You are using the development branch's connection string right now, which means experiments here can never corrupt real user data later.</div>
+
+      <h3 id="p0-pgvector">What is pgvector, and why did we turn it on?</h3>
+      <p>Here is the one piece of magic that makes RAG possible. Computers cannot compare the <em>meaning</em> of two sentences directly. So we convert each passage of text into a long list of numbers - typically hundreds of them - called an <strong>embedding</strong> or a <strong>vector</strong>. The trick is that passages with similar meanings get similar lists of numbers. "The mitochondria produces energy" and "cells generate power in the mitochondria" end up close together in this number-space, even though they share few words.</p>
+      <p>To find passages relevant to a question, we turn the question into a vector too, then ask the database: "which stored vectors are closest to this one?" Ordinary Postgres cannot do that. The <strong>pgvector</strong> extension teaches it how - it adds a new column type for vectors and the math to compare them. We enabled it with one idempotent command (idempotent means safe to run repeatedly - it does nothing if already done):</p>
+      <pre><code>CREATE EXTENSION IF NOT EXISTS vector;</code></pre>
+      <div class="callout anno"><span class="callout-label">Note</span>We ran this early, as a standalone check, purely to confirm Neon's free tier actually supports pgvector before building anything on top of it. If that command had failed, the entire technical plan would have needed rethinking. It succeeded, so we knew the ground was solid. (Later, in Phase 1, this same line gets baked into a migration so it runs automatically on any fresh database.)</div>
+
+      <h3 id="p0-prisma">Foundation 2: the translator (Prisma)</h3>
+      <p>Talking to a database traditionally means writing <strong>SQL</strong>, a specialized query language. It works, but it is easy to make mistakes that your editor cannot catch until the program crashes. <strong>Prisma</strong> is an <strong>ORM</strong> (Object-Relational Mapper): it lets us describe our data in a clean schema file, and then write database operations as normal TypeScript with autocomplete and type-checking. If you ask for a field that does not exist, your editor underlines it in red immediately, before the code ever runs.</p>
+
+      <h4>The driver adapter: how Prisma actually connects</h4>
+      <p>Prisma 7 (the version we use) connects to Postgres through a small, standard library called <code>pg</code>, wrapped in something called a <strong>driver adapter</strong>. You can think of the adapter as a power plug shape: <code>pg</code> is a well-understood, widely-used way of speaking to Postgres, and the adapter is the socket that lets Prisma plug into it.</p>
+      <div class="callout why"><span class="callout-label">Why the driver-adapter approach</span>Older Prisma shipped its own private connection engine written in a different programming language (Rust), bundled as a separate binary. That worked but was heavier and occasionally awkward to deploy. The modern adapter approach uses a plain JavaScript library instead, which is lighter, deploys more predictably on serverless platforms like Vercel, and is the direction Prisma is actively moving. Choosing it signals you are current with the ecosystem - which matters for a project meant to showcase engineering skill.</div>
+
+      <h4>Where the connection string lives (and why not in the schema)</h4>
+      <p>We keep the connection string - which contains a password - in a file called <code>.env</code>, which is never committed to Git. The code reads it by name (<code>DATABASE_URL</code>), never by pasting the secret directly. In Prisma 7 this wiring lives in <code>prisma.config.ts</code>:</p>
+      <pre><code>import "dotenv/config";
+import { defineConfig } from "prisma/config";
+
+export default defineConfig({
+  schema: "prisma/schema.prisma",
+  migrations: { path: "prisma/migrations" },
+  datasource: {
+    url: process.env["DATABASE_URL"],  // read the secret from .env, never hard-code it
+  },
+});</code></pre>
+      <div class="callout anno"><span class="callout-label">Gotcha</span>A subtle Prisma 7 change bit us here and is worth remembering. In older Prisma, the connection URL went inside <code>schema.prisma</code> itself. In Prisma 7 that is no longer allowed - the URL moves to this config file, and the schema's <code>datasource</code> block only names the database <em>type</em>. When we briefly tried the old way, the editor flagged it instantly: "the datasource property url is no longer supported." That is the type-checking safety net doing its job.</div>
+
+      <h3 id="p0-tools">Foundation 3: the tools (pnpm, tsx, dotenv)</h3>
+      <ul>
+        <li><strong>pnpm</strong> is a package manager - the tool that downloads and organizes the third-party code libraries our project depends on. It does the same job as <code>npm</code> or <code>yarn</code> but is faster and more disk-efficient. This project standardizes on it exclusively, so mixing in <code>npm</code> would create conflicting bookkeeping files.</li>
+        <li><strong>tsx</strong> lets us run a TypeScript file directly from the command line, without a separate compile step. Handy for quick one-off maintenance scripts.</li>
+        <li><strong>dotenv</strong> is the small library that reads the <code>.env</code> file and loads those secrets into the running program.</li>
+      </ul>
+
+      <h4>Proving the foundation holds</h4>
+      <p>A foundation you have not tested is just a hope. We confirmed the connection genuinely works by running a trivial query against Neon and watching it succeed. The result: Postgres reachable, pgvector available, Prisma configured. Only then did we move on.</p>
+    </section>
+
+    <!-- ============================ PHASE 1 ============================ -->
+    <section class="doc-section" id="phase1">
+      <h2><span class="h2-eyebrow">Phase 1</span>The data model</h2>
+      <p class="section-kicker">Describing every kind of information Recall stores, and how the pieces connect.</p>
+
+      <h3 id="p1-what">What a data model is, in plain terms</h3>
+      <p>A <strong>data model</strong> is a blueprint of everything the app needs to remember and how those things relate. Think of it as a set of labeled boxes and the string connecting them. Recall's boxes:</p>
+      <ul>
+        <li><strong>User</strong> - a person with an account.</li>
+        <li><strong>StudySet</strong> - a folder grouping documents by topic, e.g. "DBMS Finals." Each belongs to one user.</li>
+        <li><strong>Document</strong> - one uploaded PDF. Each belongs to one study set.</li>
+        <li><strong>Chunk</strong> - a small passage of text cut out of a document, <em>plus its embedding vector</em>. Each belongs to one document. This is the heart of the whole system.</li>
+        <li><strong>Conversation</strong> and <strong>Message</strong> - the chat history of questions and answers.</li>
+        <li><strong>Citation</strong> - a link recording exactly which chunk an answer drew from, so we can show the source.</li>
+        <li><strong>Question</strong> - a generated quiz item or flashcard, each tied back to the chunk it came from.</li>
+      </ul>
+      <p>The connections form a strict hierarchy: <code>User -> StudySet -> Document -> Chunk</code>. This is not decoration - it is how we guarantee privacy. Because every chunk traces up through a document and a study set to exactly one user, we can always answer "who is allowed to see this?" with certainty.</p>
+
+      <h3 id="p1-chunks">Why chunks, instead of storing whole documents?</h3>
+      <p>A textbook chapter might be 30 pages. If a student asks "what is a foreign key?", we do not want to hand the entire chapter to the AI - it is wasteful and dilutes the relevant part. So during upload we slice each document into small, page-sized passages (chunks). We embed each chunk separately. Then a question retrieves just the handful of chunks that actually discuss foreign keys. Chunks are the unit of retrieval, the unit of citation, and the unit of quiz-generation - everything downstream is built on them.</p>
+
+      <h3 id="p1-prisma">Expressing the model in Prisma</h3>
+      <p>Each box becomes a <code>model</code> in the schema. Here is the <code>Chunk</code> model, the most important one, annotated:</p>
+      <pre><code>model Chunk {
+  id         String                       @id @default(cuid())
+  documentId String
+  content    String
+  embedding  Unsupported("vector(768)")?
+  page       Int
+  chunkIndex Int
+  tokenCount Int
+
+  document   Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  citations  Citation[]
+  questions  Question[]
+
+  @@index([documentId])
+}</code></pre>
+      <div class="callout anno"><span class="callout-label">Line by line</span>
+        <ul>
+          <li><code>id ... @default(cuid())</code> - every chunk gets a unique ID, auto-generated. We use <strong>cuid</strong> (a random-looking collision-resistant string) rather than simple counting numbers 1, 2, 3.</li>
+          <li><code>content</code> - the actual passage text.</li>
+          <li><code>embedding Unsupported("vector(768)")?</code> - the meaning-vector. More on this just below. The <code>?</code> means it can be temporarily empty (a chunk exists briefly after being cut but before being embedded).</li>
+          <li><code>page</code>, <code>chunkIndex</code> - where in the document this passage sits, so a citation can say "page 12."</li>
+          <li><code>tokenCount</code> - roughly how long the passage is, useful for staying within the AI's size limits later.</li>
+          <li><code>document ... onDelete: Cascade</code> - the string tying this chunk to its parent document. "Cascade" means: if the document is deleted, its chunks are automatically deleted too, so we never leave orphaned data behind.</li>
+          <li><code>@@index([documentId])</code> - a lookup shortcut so "give me all chunks of this document" is fast.</li>
+        </ul>
+      </div>
+
+      <h3 id="p1-vector">The tricky part: the vector column</h3>
+      <p>Prisma does not natively understand pgvector's special <code>vector</code> type - it is too new and specialized. Prisma gives us an escape hatch for exactly this situation: <code>Unsupported("...")</code>. It means "there is a real database column here of this exact type; I, Prisma, will keep track that it exists and include it in migrations, but I will not let you read or write it through the normal typed API." We will read and write embeddings through small hand-written SQL queries in later phases, which is the standard, accepted pattern for pgvector.</p>
+      <div class="callout why"><span class="callout-label">Why 768 numbers, fixed forever</span>The vector's length must match whatever AI model produces the embeddings. We use Google's <code>text-embedding-004</code>, which outputs exactly 768 numbers. This choice is essentially permanent: if we ever changed it, every stored embedding would become incompatible and every document would need re-processing from scratch. So we committed to 768 deliberately and up front, rather than discovering the constraint later.</div>
+
+      <div class="rejected" id="p1-rejected">
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>Keeping the vector column out of the schema entirely.</b> We could have hidden the embedding from Prisma completely and managed it with pure hand-written SQL. Rejected because then the schema file would lie about the shape of the table - anyone reading it would not know embeddings exist. Using <code>Unsupported</code> keeps the schema honest and self-documenting.</div>
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>Simple counting IDs (1, 2, 3...) instead of cuid.</b> Rejected for two reasons: sequential IDs leak information (a competitor could see "Document 5" and guess you only have five documents), and they make it awkward to generate an ID before saving. Random cuids avoid both problems and are the professional default.</div>
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>The ivfflat vector index instead of HNSW.</b> pgvector offers two ways to make similarity search fast. We chose HNSW (explained next), which gives better speed-and-accuracy at the cost of more memory - a worthwhile trade for a quality-focused project.</div>
+      </div>
+
+      <h3 id="p1-migrations">Turning the blueprint into real tables: migrations</h3>
+      <p>A <strong>migration</strong> is a recorded, replayable set of database changes - the SQL instructions that build the tables. Prisma can generate these automatically by comparing our schema to the current database. But we needed two things Prisma's auto-generation does not know about: turning on pgvector, and creating the special vector index. So we generated the migration <em>without applying it</em> and then hand-edited it:</p>
+      <pre><code>pnpm prisma migrate dev --create-only --name init</code></pre>
+      <p>The <code>--create-only</code> flag means "write the SQL file but do not run it yet," giving us a chance to add our two lines. At the very top we added the extension, so a brand-new database (like the future production branch) sets itself up correctly:</p>
+      <pre><code>-- Enable pgvector before any vector column is created
+CREATE EXTENSION IF NOT EXISTS vector;</code></pre>
+      <div class="callout anno"><span class="callout-label">Why order matters</span>The <code>Chunk</code> table has a <code>vector(768)</code> column, and Postgres only knows what "vector" means <em>after</em> the extension is enabled. Putting this line first guarantees the type exists before any table tries to use it. This is why the migration must be self-contained: it should rebuild the entire database from nothing, in the right order, without any manual steps.</div>
+      <p>At the bottom, we added the index that makes similarity search fast:</p>
+      <pre><code>-- HNSW index for cosine similarity search over chunk embeddings
+CREATE INDEX "Chunk_embedding_hnsw_idx" ON "Chunk" USING hnsw ("embedding" vector_cosine_ops);</code></pre>
+      <div class="callout why"><span class="callout-label">What this index does, and why "cosine"</span>Without an index, finding the closest vectors means comparing the question against <em>every single chunk</em> - fine for ten chunks, unbearably slow for a hundred thousand. <strong>HNSW</strong> (Hierarchical Navigable Small World) builds a clever multi-layer map of the vectors so search can leap to the neighborhood of good answers in a few hops instead of scanning everything. <code>vector_cosine_ops</code> tells it to measure closeness by <strong>cosine similarity</strong> - essentially, the angle between two vectors rather than the raw distance. Cosine is the standard choice for text embeddings because it focuses on <em>direction</em> (meaning) and ignores <em>magnitude</em> (roughly, passage length).</div>
+      <p>With the file edited, we applied it for real:</p>
+      <pre><code>pnpm prisma migrate dev</code></pre>
+      <p>This ran our SQL against Neon, creating all eight tables, their relationships, their indexes, and the vector index in one shot - and recorded that this migration has been applied, so it never runs twice.</p>
+
+      <h3 id="p1-singleton">The connection singleton</h3>
+      <p>Our app needs one shared Prisma client to talk to the database. We create it once in <code>lib/db.ts</code> and import it everywhere:</p>
+      <pre><code>import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@/app/generated/prisma/client";
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ?? new PrismaClient({ adapter });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;</code></pre>
+      <div class="callout anno"><span class="callout-label">Why the global dance</span>The odd-looking <code>globalForPrisma</code> trick solves a real, specific problem. During development, Next.js constantly reloads your code as you edit. If we naively wrote <code>new PrismaClient()</code>, every reload would open a fresh batch of database connections and never close the old ones, quickly exhausting the free tier's connection limit. So we stash the one client on the global object and reuse it across reloads. In production this is unnecessary (code does not hot-reload there), so we only do it when not in production. This exact pattern is near-universal in professional Next.js + Prisma codebases.</div>
+
+      <h4>Proving Phase 1 holds</h4>
+      <p>Same principle as before: test the foundation. We ran a quick script that created a user with a nested study set, counted the users, then deleted everything and confirmed the cascade cleaned up - all green. That proved the tables, relationships, cascades, and the generated typed client genuinely work together against the live database. Phase 1 stands.</p>
+    </section>
+
+    <!-- ============================ PHASE 2 ============================ -->
+    <section class="doc-section" id="phase2">
+      <h2><span class="h2-eyebrow">Phase 2</span>Authentication and authorization</h2>
+      <p class="section-kicker">Letting people prove who they are, and making sure they only ever see their own data.</p>
+
+      <h3 id="p2-what">What "auth" actually means here</h3>
+      <p>Two related but different jobs hide under the word "auth":</p>
+      <ul>
+        <li><strong>Authentication</strong> - proving <em>who you are</em>. In Recall this is an email and a password. Get them right and the system believes you are you.</li>
+        <li><strong>Authorization</strong> - deciding <em>what you are allowed to do</em>. In Recall the rule is simple and absolute: you may only ever touch data that belongs to you. Your study sets, your documents, your chats - never anyone else's.</li>
+      </ul>
+      <p>These matter more here than in a typical app because Recall holds a person's private study material. A leak is not a cosmetic bug, it is a breach of trust. So authorization is not a feature we bolt on later - it is a rule every single database query in the app must obey.</p>
+      <p>We build all of this on <strong>Auth.js</strong> (formerly NextAuth), the standard authentication library for Next.js. It handles the fiddly, security-critical parts - sessions, cookies, cross-site request protection - so we do not hand-roll them and get them subtly wrong.</p>
+
+      <div class="callout why"><span class="callout-label">A scope decision</span>The original plan allowed signing in with Google too. We deliberately cut that to <strong>email and password only</strong>. It removes an external dependency (no Google Cloud Console setup, no OAuth round-trip to debug) and, as you will see next, actually makes the whole design simpler and cleaner. The plan file was updated to match - the plan follows reality, not the other way around.</div>
+
+      <h3 id="p2-strategy">The central decision: how a session is remembered</h3>
+      <p>After you prove who you are, the app needs to <em>remember</em> that for the rest of your visit, so you are not asked to log in on every click. That memory is called a <strong>session</strong>, and there are two ways to store it:</p>
+      <ul>
+        <li><strong>Database sessions</strong> - the server keeps a row in a table for every logged-in visit and hands you a meaningless ticket number (a cookie). On each request it looks up your ticket to see who you are.</li>
+        <li><strong>JWT sessions</strong> - the server hands you a small, cryptographically <em>signed</em> token that itself says "this is user X." No database lookup needed; the signature proves it has not been tampered with. JWT stands for JSON Web Token.</li>
+      </ul>
+      <p>We chose <strong>JWT sessions</strong>, and here the choice was partly made for us. Auth.js has a hard rule: the email-and-password login method (its "Credentials" provider) <em>only</em> works with JWT sessions, not database sessions. Since email/password is our only login method, JWT is the natural fit.</p>
+      <div class="callout anno"><span class="callout-label">The happy consequence</span>Because we use JWT and no external login providers, we do <em>not</em> need Auth.js's database adapter at all - and therefore none of the extra bookkeeping tables (<code>Account</code>, <code>Session</code>, <code>VerificationToken</code>) it would normally require. Our <code>User</code> table stays exactly as the PRD drew it: id, email, passwordHash, name, createdAt. This is why we deliberately left those adapter tables out of Phase 1 - their necessity depended on a decision we had not made yet. Cutting Google collapsed the whole thing to its simplest honest form.</div>
+
+      <div class="rejected" id="p2-rejected">
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>Database sessions with a full adapter.</b> More moving parts and, critically, incompatible with password login. Rejected - it would have forced us to keep Google or drop password login, and added three tables we do not need.</div>
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>Rolling our own auth from scratch.</b> Tempting to feel "in control," but authentication is exactly the kind of code where small mistakes become security holes. Using a well-audited library is the professional choice; reinventing it is the amateur one.</div>
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>Storing passwords encrypted (reversible) instead of hashed.</b> A serious error. Encryption can be undone with a key; if that key leaks, every password leaks. Hashing (next section) is one-way by design. We never store anything that can be turned back into the original password.</div>
+      </div>
+
+      <h3 id="p2-hashing">Never store the password: hashing with bcrypt</h3>
+      <p>We must never save a user's actual password. If our database were ever stolen, plain passwords would be a catastrophe - people reuse passwords across sites. Instead we store a <strong>hash</strong>: the output of a one-way mathematical blender. The same password always produces the same hash, but there is no way to run the blender backwards to recover the password.</p>
+      <p>When you sign up, we hash your password and store only the hash. When you sign in, we hash what you typed and compare the two hashes. We use <strong>bcrypt</strong>, a hashing function designed specifically for passwords - it is deliberately <em>slow</em>, which makes it painfully expensive for an attacker to guess billions of passwords, while staying fast enough for a single honest login.</p>
+      <pre><code>// On sign-up: turn the password into a one-way hash (the "12" sets the work factor)
+const passwordHash = await bcrypt.hash(password, 12);
+await prisma.user.create({ data: { name, email, passwordHash } });
+
+// On sign-in: compare, never decrypt
+const valid = await bcrypt.compare(password, user.passwordHash);</code></pre>
+      <div class="callout anno"><span class="callout-label">The work factor</span>That <code>12</code> is the number of rounds of blending, on a doubling scale. Higher means slower and safer; too high and honest logins feel sluggish. Twelve is the current well-accepted default - strong today, and easy to raise later as computers get faster.</div>
+
+      <h3 id="p2-split">A subtlety: the edge/node split</h3>
+      <p>Next.js can run little bits of code in two very different places. Most code runs on a normal server ("Node"), where powerful libraries like bcrypt work fine. But some code - specifically <strong>middleware</strong>, the guard that inspects every incoming request before it reaches a page - runs in a stripped-down, ultra-fast environment called "the edge," where bcrypt cannot run.</p>
+      <p>Our middleware needs to answer one cheap question on every request: "is this person logged in, and are they allowed here?" It does <em>not</em> need bcrypt for that. So we split the Auth.js configuration in two:</p>
+      <ul>
+        <li><code>auth.config.ts</code> - the lightweight, edge-safe part: which pages are protected, how to read the session token. No bcrypt, no database.</li>
+        <li><code>auth.ts</code> - the full part that adds the password-checking login method (which needs bcrypt and the database), built by extending the lightweight config.</li>
+      </ul>
+      <p>The middleware imports only the light half, so it stays edge-compatible; the actual login imports the full half. Here is the guard logic that decides who may go where:</p>
+      <pre><code>authorized({ auth, request: { nextUrl } }) {
+  const isLoggedIn = !!auth?.user;
+
+  // Logged-in users skip the login/register pages
+  const isOnAuthPage = nextUrl.pathname.startsWith("/login")
+                    || nextUrl.pathname.startsWith("/register");
+  if (isOnAuthPage) {
+    if (isLoggedIn) return Response.redirect(new URL("/dashboard", nextUrl));
+    return true;
+  }
+
+  // The app's private areas require a session
+  const isProtected = nextUrl.pathname.startsWith("/dashboard")
+                   || nextUrl.pathname.startsWith("/study-sets");
+  if (isProtected) return isLoggedIn;
+
+  return true;  // everything else (landing page, etc.) is public
+}</code></pre>
+      <div class="callout why"><span class="callout-label">Why guard in middleware at all</span>Because it runs <em>before</em> the page does. An unauthenticated visitor to <code>/dashboard</code> is bounced to <code>/login</code> before any private component even starts rendering. We confirmed this works: a raw request to <code>/dashboard</code> returned a redirect to <code>/login</code>, exactly as intended. (Middleware is the outer fence; the real, non-negotiable checks still happen at each database query, covered below.)</div>
+
+      <h3 id="p2-flow">The sign-up flow, using Server Actions</h3>
+      <p>Rather than a separate hand-written API endpoint, we use <strong>Server Actions</strong> - a modern Next.js feature where a form can call a server function directly. The form on the page points at a function that runs safely on the server, and the framework wires up the plumbing between them. It is less code and harder to misuse.</p>
+      <pre><code>export async function registerUser(_prev, formData) {
+  // 1. Validate the shape of the input with a schema (zod)
+  const parsed = registerSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  // 2. Refuse duplicate accounts
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return { error: "An account with this email already exists" };
+
+  // 3. Hash, store, and sign the new user straight in
+  const passwordHash = await bcrypt.hash(password, 12);
+  await prisma.user.create({ data: { name, email, passwordHash } });
+  await signIn("credentials", { email, password, redirectTo: "/dashboard" });
+}</code></pre>
+      <div class="callout anno"><span class="callout-label">Validate before you trust</span>Step 1 uses <strong>zod</strong>, a library that checks incoming data against a declared shape ("email must look like an email, password at least 8 characters"). Never trust what a browser sends - it could come from a script, not a form. We validate in two places: instantly in the browser for friendly feedback, and again on the server, which is the check that actually counts.</div>
+      <p>We verified this data path against the live database: registering hashes and stores the user, a duplicate email is caught, the correct password verifies, and a wrong password is rejected. All four behaved correctly.</p>
+
+      <h3 id="p2-enforce">The real safeguard: enforcing ownership at every query</h3>
+      <p>Middleware is a fence around the front door, but the true guarantee lives deeper. Every feature from here on will fetch data through a single identity helper, so there is one obvious place the ownership rule is enforced:</p>
+      <pre><code>export async function requireUser() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  return session.user;   // guaranteed to have an id from here on
+}</code></pre>
+      <div class="callout why"><span class="callout-label">Why funnel through one helper</span>Because scattered security checks are where breaches hide - miss one query and you have a leak. By making <code>requireUser()</code> the mandatory first step of every protected page and action, and then always filtering queries by that user's id (for example, "find this study set <em>where userId equals the current user</em>"), we make the safe path the easy path. Later phases lean on this constantly, especially the vector search - every similarity query will be scoped to the owner, so one student can never retrieve another's notes.</div>
+
+      <h4>Proving Phase 2 holds</h4>
+      <p>Four independent checks, all green: the project type-checks; the middleware redirects an unauthenticated request away from <code>/dashboard</code>; the login and register pages render; and the credential logic (hash, duplicate guard, correct-vs-wrong password) behaves correctly against the live database. The password-login backbone is in place, and every later feature now has a trustworthy notion of "the current user" to build on.</p>
+    </section>
+
+    <!-- ============================ PHASE 3 ============================ -->
+    <section class="doc-section" id="phase3">
+      <h2><span class="h2-eyebrow">Phase 3</span>Study sets</h2>
+      <p class="section-kicker">The folders that organize a student's documents - and the first place the app starts to feel real.</p>
+
+      <h3 id="p3-what">What we are building</h3>
+      <p>A <strong>study set</strong> is a labelled folder, like "DBMS Finals" or "Organic Chemistry Ch. 4." It groups the PDFs a student wants to study together, and later it is the boundary for a conversation and for generated quizzes. Everything in Recall hangs off study sets, so this phase gives users the ability to <strong>create, list, rename, and delete</strong> them. Programmers call this basic set of operations <strong>CRUD</strong> (Create, Read, Update, Delete).</p>
+      <p>It sounds mundane, and the happy path is. The interesting engineering is entirely in one question: how do we make it <em>impossible</em> for one user to touch another user's study sets? That is what most of this phase is really about.</p>
+
+      <h3 id="p3-layers">The three layers</h3>
+      <p>Rather than cram database calls, security checks, and HTML into one file, we separate the work into three clean layers. This is how experienced developers keep code testable and safe as it grows.</p>
+      <ul>
+        <li><strong>Data-access layer</strong> (<code>lib/data/study-sets.ts</code>) - the only code that talks to the database about study sets. Every function here takes a <code>userId</code> and refuses to look outside it.</li>
+        <li><strong>Action layer</strong> (<code>lib/actions/study-sets.ts</code>) - the bridge the browser calls. It figures out <em>who</em> is asking (via <code>requireUser()</code>), validates the input, then delegates to the data layer.</li>
+        <li><strong>UI layer</strong> (the pages and components) - what the user sees and clicks. It knows nothing about the database directly; it only calls actions.</li>
+      </ul>
+      <div class="callout why"><span class="callout-label">Why bother separating them</span>Because security lives in the data layer, and by funnelling <em>every</em> study-set database call through those few functions, there is exactly one place to get the ownership rule right - and one place to audit. Scatter raw database queries across a dozen page files and sooner or later one of them forgets the ownership check. That forgotten check is the leak. Centralizing prevents it structurally, not just by being careful.</div>
+
+      <h3 id="p3-authz">The key idea: authorization lives inside the query</h3>
+      <p>The naive way to check ownership is two steps: first fetch the study set, then compare its <code>userId</code> to the current user in your code. That works, but it is fragile - forget the second step and you have a hole. We do something stronger: we bake the ownership rule <em>into the database query itself</em>, so a query physically cannot touch a row that is not yours.</p>
+      <pre><code>// Rename, scoped by BOTH id and userId at once:
+export function renameStudySet(userId: string, id: string, title: string) {
+  return prisma.studySet.updateMany({
+    where: { id, userId },      // must match the id AND belong to this user
+    data: { title },
+  });
+}</code></pre>
+      <div class="callout anno"><span class="callout-label">Read the trick carefully</span>Notice this uses <code>updateMany</code>, not the simpler <code>update</code>. The reason is subtle and important. <code>update</code> targets a single row by its id and <em>throws an error</em> if you add other conditions it cannot guarantee - and more to the point, it would let you attempt an update by id alone. <code>updateMany</code> takes a full <code>where</code> filter, so we require <code>id</code> <em>and</em> <code>userId</code> to both match. If an attacker passes someone else's study-set id, the filter matches zero rows: the update simply affects nothing and reports <code>count: 0</code>. No error to handle, no leak - the wrong-owner case collapses to "nothing happened." Deletes use the same <code>deleteMany</code> pattern for the same reason.</div>
+      <p>We tested exactly this attack. We created a study set owned by one user, then had a second "attacker" user attempt to read, rename, and delete it. Every attempt came back empty: read returned nothing, rename and delete each affected <strong>0 rows</strong>. The owner's own operations, meanwhile, worked normally. The isolation is real and enforced at the deepest layer.</p>
+
+      <h3 id="p3-actions">Server Actions, and keeping the screen fresh</h3>
+      <p>As in Phase 2, the browser talks to the server through <strong>Server Actions</strong> - server functions a form can call directly. The create action shows the full shape:</p>
+      <pre><code>export async function createStudySetAction(_prev, formData) {
+  const user = await requireUser();                       // 1. who is asking?
+  const parsed = studySetTitleSchema.safeParse(formData.get("title"));
+  if (!parsed.success) return { error: ... };             // 2. is the input valid?
+  const set = await createStudySet(user.id, parsed.data); // 3. do it, scoped to them
+  revalidatePath("/dashboard");                           // 4. refresh the list
+  redirect(`/study-sets/${set.id}`);                      // 5. go to the new set
+}</code></pre>
+      <div class="callout why"><span class="callout-label">What revalidatePath does</span>Next.js caches rendered pages for speed. When you create a study set, the dashboard's list is now stale - it does not show the new one. <code>revalidatePath("/dashboard")</code> tells Next "the data behind this page changed, rebuild it next time it is shown." Without it, a user would create a set and not see it appear until a manual refresh. This is the modern alternative to the old approach of manually re-fetching data in the browser - the server just marks what is stale and the framework handles the rest.</div>
+      <p>The UI layer stays thin: the dashboard server component calls <code>listStudySets(user.id)</code> and renders either an empty state or a grid of cards; a small client component handles the create form's typing and pending state; the detail page offers inline rename and a delete button guarded by a confirmation prompt.</p>
+
+      <h3 id="p3-bug">A real bug we caught (and why testing matters)</h3>
+      <p>While verifying this phase, the app logged a cryptic <code>MissingSecret</code> error from the auth library. The cause was almost comically small: back in Phase 2, when we added the secret key to the <code>.env</code> file, the existing line had no newline at its end, so the new <code>AUTH_SECRET</code> value got glued onto the end of the database line. The file looked fine at a glance, but the tool that reads it saw one mangled line and silently ignored the secret.</p>
+      <div class="callout anno"><span class="callout-label">The lesson</span>This bug would not have shown up in the compiler or in casual clicking around - the redirect for logged-out users still worked, because it needs no secret. It would have struck the instant a real user tried to actually log in. We only caught it because we drove the <em>real</em> login flow end to end and watched the server logs. "It compiles" and "the page loads" are not the same as "it works." Splitting the two <code>.env</code> values onto separate lines fixed it immediately.</div>
+
+      <h3 id="p3-proof">Proving Phase 3 holds</h3>
+      <p>Several independent checks, all green. The project type-checks. We drove a complete real login (obtaining a security token, signing in through the auth library's own endpoint, receiving a session cookie, and using it to load the protected dashboard, which rendered the signed-in user's email). The study-set operations work for their owner. And the cross-user attack - read, rename, delete another user's set - failed at every turn, exactly as designed. The organizing layer of the app is in place and safe, ready for documents to be poured into it.</p>
+    </section>
+
+  </main>
+  </div>
+</div>
+
+<script>
+  // Highlight the sidebar link for whichever section is in view.
+  const links = Array.from(document.querySelectorAll('.nav a'));
+  const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const targets = Array.from(map.keys())
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(a => a.classList.remove('active'));
+        const active = map.get(entry.target.id);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '0px 0px -75% 0px', threshold: 0 });
+
+  targets.forEach(t => observer.observe(t));
+</script>
+
+</body>
+</html>

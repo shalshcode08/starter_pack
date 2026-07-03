@@ -1,0 +1,138 @@
+// Recall data model. See PRD.md for the entity hierarchy:
+// User -> StudySet -> Document -> Chunk, with Conversation/Message/Citation
+// and Question hanging off User and StudySet.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DocumentStatus {
+  processing
+  ready
+  failed
+}
+
+enum MessageRole {
+  user
+  assistant
+}
+
+enum QuestionType {
+  quiz
+  flashcard
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String?
+  name          String?
+  createdAt     DateTime       @default(now())
+
+  studySets     StudySet[]
+  conversations Conversation[]
+}
+
+model StudySet {
+  id            String         @id @default(cuid())
+  userId        String
+  title         String
+  createdAt     DateTime       @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents     Document[]
+  conversations Conversation[]
+  questions     Question[]
+
+  @@index([userId])
+}
+
+model Document {
+  id         String         @id @default(cuid())
+  studySetId String
+  title      String
+  filename   String
+  status     DocumentStatus @default(processing)
+  createdAt  DateTime       @default(now())
+
+  studySet   StudySet       @relation(fields: [studySetId], references: [id], onDelete: Cascade)
+  chunks     Chunk[]
+
+  @@index([studySetId])
+}
+
+model Chunk {
+  id         String                       @id @default(cuid())
+  documentId String
+  content    String
+  embedding  Unsupported("vector(768)")?
+  page       Int
+  chunkIndex Int
+  tokenCount Int
+
+  document   Document                     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  citations  Citation[]
+  questions  Question[]
+
+  @@index([documentId])
+}
+
+model Conversation {
+  id         String    @id @default(cuid())
+  userId     String
+  studySetId String
+  title      String
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studySet   StudySet  @relation(fields: [studySetId], references: [id], onDelete: Cascade)
+  messages   Message[]
+
+  @@index([userId])
+  @@index([studySetId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  createdAt      DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  citations      Citation[]
+
+  @@index([conversationId])
+}
+
+model Citation {
+  id        String  @id @default(cuid())
+  messageId String
+  chunkId   String
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  chunk     Chunk   @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([chunkId])
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  studySetId    String
+  type          QuestionType
+  prompt        String
+  answer        String
+  sourceChunkId String
+
+  studySet      StudySet     @relation(fields: [studySetId], references: [id], onDelete: Cascade)
+  sourceChunk   Chunk        @relation(fields: [sourceChunkId], references: [id], onDelete: Cascade)
+
+  @@index([studySetId])
+  @@index([sourceChunkId])
+}

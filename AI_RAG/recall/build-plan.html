@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recall - Build Plan</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --panel: #12151c;
+    --panel-border: #232838;
+    --text: #e6e8ee;
+    --text-dim: #9aa2b1;
+    --accent: #7dd3c0;
+    --accent-2: #8ea9ff;
+    --warn: #e7b455;
+    --done: #6fcf97;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --panel-border: #e2e5ee;
+      --text: #1a1d27;
+      --text-dim: #5c6270;
+      --accent: #1f8a72;
+      --accent-2: #3855c9;
+      --warn: #a5690b;
+      --done: #1f8a4d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0d12; --panel: #12151c; --panel-border: #232838;
+    --text: #e6e8ee; --text-dim: #9aa2b1; --accent: #7dd3c0; --accent-2: #8ea9ff;
+    --warn: #e7b455; --done: #6fcf97;
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f7fb; --panel: #ffffff; --panel-border: #e2e5ee;
+    --text: #1a1d27; --text-dim: #5c6270; --accent: #1f8a72; --accent-2: #3855c9;
+    --warn: #a5690b; --done: #1f8a4d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+    line-height: 1.55;
+  }
+  h1 { font-size: 1.9rem; margin-bottom: 4px; letter-spacing: -0.02em; }
+  .subtitle { color: var(--text-dim); font-size: 1rem; margin-bottom: 32px; }
+  .meta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; }
+  .pill {
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+  .pill b { color: var(--text); font-weight: 600; }
+  h2.section-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin: 48px 0 16px;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 8px;
+  }
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 10px;
+  }
+  .stack-item {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .stack-item .k { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+  .stack-item .v { font-size: 0.9rem; margin-top: 2px; font-weight: 500; }
+
+  .phase {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 16px;
+  }
+  .phase-head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .phase-num {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b0d12;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+  }
+  .phase-title { font-size: 1.15rem; font-weight: 600; }
+  .status {
+    margin-left: auto;
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .status.not-started { color: var(--text-dim); }
+  .status.done { color: var(--done); border-color: var(--done); }
+  .status.up-next { color: var(--accent-2); border-color: var(--accent-2); }
+  .phase-goal { color: var(--text-dim); font-size: 0.92rem; margin: 6px 0 14px; }
+  .phase h4 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin: 14px 0 6px;
+  }
+  .phase ul { margin: 0; padding-left: 20px; }
+  .phase li { margin-bottom: 4px; font-size: 0.92rem; }
+  .decision-box {
+    background: rgba(126, 211, 192, 0.08);
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    margin-top: 10px;
+  }
+  .decision-box b { color: var(--accent); }
+  .done-when {
+    font-size: 0.88rem;
+    margin-top: 10px;
+    color: var(--text-dim);
+  }
+  .done-when b { color: var(--text); }
+  .agreement {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 20px 24px;
+  }
+  .agreement ul { padding-left: 20px; margin: 8px 0; }
+  .agreement li { margin-bottom: 6px; font-size: 0.92rem; }
+  code {
+    background: rgba(126,211,192,0.12);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 0.87em;
+  }
+  footer { margin-top: 56px; color: var(--text-dim); font-size: 0.8rem; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Recall - Build Plan</h1>
+<p class="subtitle">A study assistant that turns notes and lecture PDFs into a searchable, quiz-generating knowledge base - grounded Q&amp;A with citations, quizzes, and flashcards from your own material.</p>
+
+<div class="meta-row">
+  <span class="pill">Status: <b>Phase 4 - PDF ingestion (up next)</b></span>
+  <span class="pill">Cost target: <b>Rs 0</b></span>
+  <span class="pill">Deploy target: <b>Vercel Hobby</b></span>
+</div>
+
+<h2 class="section-title">Tech Stack</h2>
+<div class="stack-grid">
+  <div class="stack-item"><div class="k">Framework</div><div class="v">Next.js (App Router) + TypeScript</div></div>
+  <div class="stack-item"><div class="k">Database</div><div class="v">PostgreSQL + pgvector (Neon free tier)</div></div>
+  <div class="stack-item"><div class="k">ORM</div><div class="v">Prisma</div></div>
+  <div class="stack-item"><div class="k">Auth</div><div class="v">Auth.js (email + Google)</div></div>
+  <div class="stack-item"><div class="k">Styling</div><div class="v">Tailwind CSS</div></div>
+  <div class="stack-item"><div class="k">LLM</div><div class="v">Gemini Flash-Lite (free tier)</div></div>
+  <div class="stack-item"><div class="k">Embeddings</div><div class="v">Gemini embeddings</div></div>
+  <div class="stack-item"><div class="k">PDF extraction</div><div class="v">unpdf</div></div>
+  <div class="stack-item"><div class="k">Package manager</div><div class="v">pnpm (only)</div></div>
+  <div class="stack-item"><div class="k">Deploy</div><div class="v">Vercel Hobby</div></div>
+</div>
+
+<h2 class="section-title">Data Model</h2>
+<div class="decision-box">
+<b>Hierarchy:</b> User &rarr; StudySet &rarr; Document &rarr; Chunk (with vector embedding). Conversation/Message/Citation and Question (quiz/flashcard) hang off User and StudySet, each traceable back to a source Chunk.
+</div>
+
+<h2 class="section-title">Phases</h2>
+
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-num">0</div>
+    <div class="phase-title">Foundation &amp; tooling</div>
+    <div class="status done">Done</div>
+  </div>
+  <p class="phase-goal">Get the project wired up so every later phase has a database, env config, and dependencies to build on.</p>
+  <h4>Tasks</h4>
+  <ul>
+    <li>Provision a Neon Postgres project, enable the <code>pgvector</code> extension</li>
+    <li>Install Prisma, Auth.js, Gemini SDK, <code>unpdf</code> via pnpm</li>
+    <li><code>.env.local</code> with <code>DATABASE_URL</code>, <code>AUTH_SECRET</code>, <code>GOOGLE_CLIENT_ID/SECRET</code>, <code>GEMINI_API_KEY</code></li>
+    <li>Confirm Tailwind v4 config is clean; set base layout and fonts</li>
+  </ul>
+  <div class="done-when"><b>Done when:</b> <code>pnpm dev</code> runs, Prisma connects to Neon, a trivial query round-trips.</div>
+</div>
+
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-num">1</div>
+    <div class="phase-title">Data model &amp; schema</div>
+    <div class="status done">Done</div>
+  </div>
+  <p class="phase-goal">Encode the full PRD data model in Prisma and get migrations running against pgvector.</p>
+  <h4>Tasks</h4>
+  <ul>
+    <li>Prisma schema: User, StudySet, Document, Chunk, Conversation, Message, Citation, Question</li>
+    <li>Chunk.embedding as a vector column (raw SQL migration extension since Prisma lacks native vector type support)</li>
+    <li>Indexes: ivfflat/hnsw index on embedding, FK indexes on ownership chains</li>
+    <li>Seed script scaffold (used later for the guest demo)</li>
+  </ul>
+  <div class="decision-box"><b>Decided:</b> declared the column as <code>Unsupported("vector(768)")</code> so Prisma generates and tracks it, then hand-edited the generated migration (via <code>--create-only</code>) to prepend <code>CREATE EXTENSION IF NOT EXISTS vector</code> and append an HNSW <code>vector_cosine_ops</code> index. Dimensions fixed at 768 to match Gemini <code>text-embedding-004</code>.</div>
+  <div class="done-when"><b>Done when:</b> <code>prisma migrate dev</code> succeeds and all 8 tables exist with correct relations in Neon.</div>
+</div>
+
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-num">2</div>
+    <div class="phase-title">Authentication &amp; authorization</div>
+    <div class="status done">Done</div>
+  </div>
+  <p class="phase-goal">Every request and every vector query must be scoped strictly to the owning user.</p>
+  <h4>Tasks</h4>
+  <ul>
+    <li>Auth.js (v5) with the Credentials provider only - email + password, no OAuth</li>
+    <li>JWT session strategy (no adapter, no adapter tables - keeps the User model exactly as the PRD defines it)</li>
+    <li>Sign-up: validate input (zod), hash password with bcryptjs, create the user</li>
+    <li>Server-side <code>auth()</code> helper to get the current user and enforce ownership on every query</li>
+    <li>Protected route/middleware pattern for authenticated pages</li>
+  </ul>
+  <div class="decision-box"><b>Decided:</b> email/password only (no Google). The Credentials provider requires JWT sessions, which means we skip the Prisma adapter entirely - no Account/Session/VerificationToken tables. Passwords hashed with bcryptjs.</div>
+  <div class="done-when"><b>Done when:</b> a user can sign up and sign in with email/password, and an unauthenticated request to any data route is rejected.</div>
+</div>
+
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-num">3</div>
+    <div class="phase-title">Study sets</div>
+    <div class="status done">Done</div>
+  </div>
+  <p class="phase-goal">The organizing unit for documents, chat, and generated content.</p>
+  <h4>Tasks</h4>
+  <ul>
+    <li>Create / list / rename / delete study sets (API routes + UI)</li>
+    <li>Study set detail page listing its documents</li>
+    <li>Ownership check on every mutation and query</li>
+  </ul>
+  <div class="done-when"><b>Done when:</b> a signed-in user can create a study set (e.g. "DBMS Finals") and see it in their dashboard.</div>
+</div>
+
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-num">4</div>
+    <div class="phase-title">PDF ingestion pipeline</div>
+    <div class="status up-next">Up next</div>
+  </div>
+  <p class="phase-goal">Upload a PDF and incrementally turn it into searchable, embedded chunks without blocking on Vercel's function timeout.</p>
+  <h4>Tasks</h4>
+  <ul>
+    <li>Upload endpoint, storing the raw file and creating a Document row with status <code>processing</code></li>
+    <li>Text extraction via <code>unpdf</code>, chunking strategy (page-aware, token-bounded)</li>
+    <li>Incremental processing: chunk-by-chunk or batch-by-batch calls so no single request exceeds the serverless timeout</li>
+    <li>Embed each chunk via Gemini embeddings, store the vector</li>
+    <li>Status transitions: <code>processing</code> &rarr; <code>ready</code> / <code>failed</code>, surfaced in the UI with polling</li>
+  </ul>
+  <div class="decision-box"><b>Decision:</b> ingestion is driven by repeated short-lived route handler invocations (not a long-running worker), since there is no paid queue/worker service in scope.</div>
+  <div class="done-when"><b>Done when:</b> uploading a real lecture PDF reliably reaches <code>ready</code> with correctly paged, embedded chunks, even for large files.</div>
+</div>
+
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-num">5</div>
+    <div class="phase-title">Grounded Q&amp;A</div>
+    <div class="status not-started">Not started</div>
+  </div>
+  <p class="phase-goal">Answer only from the user's own material, streamed, with exact citations, and refuse when confidence is low.</p>
+  <h4>Tasks</h4>
+  <ul>
+    <li>Vector similarity search (cosine) over Chunks, scoped to userId + studySetId</li>
+    <li>Similarity threshold check: below threshold &rarr; "That isn't in your notes" refusal, no LLM call needed</li>
+    <li>Prompt construction that forces grounding in retrieved chunks only</li>
+    <li>Streamed response via Gemini Flash-Lite, rendered incrementally in the UI</li>
+    <li>Citations resolved to document, page, and passage; stored via the Citation table</li>
+    <li>Conversation and Message persistence</li>
+  </ul>
+  <div class="done-when"><b>Done when:</b> asking a question grounded in an uploaded PDF streams back an answer with a clickable citation to the exact page, and an out-of-scope question is refused.</div>
+</div>
+
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-num">6</div>
+    <div class="phase-title">Quiz &amp; flashcard generation</div>
+    <div class="status not-started">Not started</div>
+  </div>
+  <p class="phase-goal">Generate study material from a study set's chunks, each item traceable to its source.</p>
+  <h4>Tasks</h4>
+  <ul>
+    <li>Generation endpoint: sample/select chunks from a study set, prompt Gemini for structured quiz/flashcard items</li>
+    <li>Persist as Question rows (type quiz/flashcard) linked to sourceChunkId</li>
+    <li>UI to generate, browse, and review quiz/flashcard sets per study set</li>
+  </ul>
+  <div class="done-when"><b>Done when:</b> generating a quiz from a study set produces items that each link back to the exact chunk they came from.</div>
+</div>
+
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-num">7</div>
+    <div class="phase-title">Guest demo</div>
+    <div class="status not-started">Not started</div>
+  </div>
+  <p class="phase-goal">Let anyone try the product in one click, no signup friction.</p>
+  <h4>Tasks</h4>
+  <ul>
+    <li>Seed script: a demo user with a pre-ingested sample chapter (already-embedded chunks, no live upload needed)</li>
+    <li>"Try as guest" flow that logs into (or spins up) the seeded account</li>
+    <li>Guard rails so guest data resets and can't be permanently modified/deleted by others</li>
+  </ul>
+  <div class="done-when"><b>Done when:</b> a fresh visitor can click one button and immediately ask questions against seeded material.</div>
+</div>
+
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-num">8</div>
+    <div class="phase-title">Polish, deploy, document</div>
+    <div class="status not-started">Not started</div>
+  </div>
+  <p class="phase-goal">Ship it, and make it look like a finished, professional product.</p>
+  <h4>Tasks</h4>
+  <ul>
+    <li>Landing page explaining the product and linking to guest demo / sign in</li>
+    <li>Responsive pass, empty states, error states</li>
+    <li>Deploy to Vercel Hobby, verify env vars and cold-start behavior</li>
+    <li>README with live link, screenshots, and architecture summary</li>
+    <li>Final check against every PRD success criterion</li>
+  </ul>
+  <div class="done-when"><b>Done when:</b> the deployed app is publicly reachable and every success criterion in the PRD is verifiably true.</div>
+</div>
+
+<h2 class="section-title">Working Agreement</h2>
+<div class="agreement">
+  <ul>
+    <li>Build step by step and collaboratively - talk through decisions before acting, don't rush ahead through multiple phases unattended.</li>
+    <li>This file is the live plan. Any time a plan decision changes, update it here before moving on.</li>
+    <li><code>learn.html</code> is a deep teaching doc - after each phase, add a section explaining the what, the why (including rejected alternatives), and the how with annotated real code, written for a complete layperson.</li>
+    <li>pnpm only, for all package management and scripts.</li>
+    <li>No em dashes or en dashes anywhere - use a plain hyphen.</li>
+    <li>Favor quality, simplicity, robustness, and scalability over development speed - this project exists to demonstrate professional engineering skill.</li>
+  </ul>
+</div>
+
+<footer>Recall - build plan, generated from PRD.md and AGENTS.md</footer>
+
+</body>
+</html>
