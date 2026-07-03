@@ -162,7 +162,7 @@
 <p class="subtitle">A study assistant that turns notes and lecture PDFs into a searchable, quiz-generating knowledge base - grounded Q&amp;A with citations, quizzes, and flashcards from your own material.</p>
 
 <div class="meta-row">
-  <span class="pill">Status: <b>Phase 5 - grounded Q&amp;A (up next)</b></span>
+  <span class="pill">Status: <b>Phase 6 - quiz &amp; flashcards (up next)</b></span>
   <span class="pill">Cost target: <b>Rs 0</b></span>
   <span class="pill">Deploy target: <b>Vercel Hobby</b></span>
 </div>
@@ -281,7 +281,7 @@
   <div class="phase-head">
     <div class="phase-num">5</div>
     <div class="phase-title">Grounded Q&amp;A</div>
-    <div class="status up-next">Up next</div>
+    <div class="status done">Done</div>
   </div>
   <p class="phase-goal">Answer only from the user's own material, streamed, with exact citations, and refuse when confidence is low.</p>
   <h4>Tasks</h4>
@@ -293,14 +293,15 @@
     <li>Citations resolved to document, page, and passage; stored via the Citation table</li>
     <li>Conversation and Message persistence</li>
   </ul>
-  <div class="done-when"><b>Done when:</b> asking a question grounded in an uploaded PDF streams back an answer with a clickable citation to the exact page, and an out-of-scope question is refused.</div>
+  <div class="decision-box"><b>Decided:</b> two-tier refusal. A coarse cosine-distance guard (<code>MAX_DISTANCE = 0.6</code>) skips the model entirely when nothing is close; within it, the model is the semantic judge and emits a <code>SOURCES: none</code> trailer when the passages do not actually answer the question. Answers stream token by token; the model appends a <code>SOURCES: n, n</code> line that the server parses into <code>Citation</code> rows (and the client strips from display). One conversation per study set for v1. Model: <code>gemini-flash-lite-latest</code>.</div>
+  <div class="done-when"><b>Done when:</b> asking a question grounded in an uploaded PDF streams back an answer with a citation to the exact document and page, and an out-of-scope question is refused. <b>Verified.</b></div>
 </div>
 
 <div class="phase">
   <div class="phase-head">
     <div class="phase-num">6</div>
     <div class="phase-title">Quiz &amp; flashcard generation</div>
-    <div class="status not-started">Not started</div>
+    <div class="status up-next">Up next</div>
   </div>
   <p class="phase-goal">Generate study material from a study set's chunks, each item traceable to its source.</p>
   <h4>Tasks</h4>

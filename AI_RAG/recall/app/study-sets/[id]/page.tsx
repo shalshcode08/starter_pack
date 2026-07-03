@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-helpers";
 import { getStudySet } from "@/lib/data/study-sets";
+import { getConversation } from "@/lib/data/conversations";
 import { AppHeader } from "@/app/_components/app-header";
 import { ManageStudySet } from "./_components/manage-study-set";
 import { DocumentUpload } from "./_components/document-upload";
 import { DocumentList } from "./_components/document-list";
+import { Chat, type ChatMessage } from "./_components/chat";
 
 export default async function StudySetPage({
   params,
@@ -17,6 +19,18 @@ export default async function StudySetPage({
   const studySet = await getStudySet(user.id, id);
 
   if (!studySet) notFound();
+
+  const conversation = await getConversation(user.id, id);
+  const messages: ChatMessage[] = (conversation?.messages ?? []).map((m) => ({
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    sources: m.citations.map((c) => ({
+      documentTitle: c.chunk.document.title,
+      page: c.chunk.page,
+    })),
+  }));
+  const canAsk = studySet.documents.some((d) => d.status === "ready");
 
   return (
     <>
@@ -43,6 +57,13 @@ export default async function StudySetPage({
           <div className="mt-4">
             <DocumentList documents={studySet.documents} />
           </div>
+        </section>
+
+        <section className="mt-10">
+          <h2 className="mb-4 text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            Ask
+          </h2>
+          <Chat studySetId={studySet.id} initialMessages={messages} canAsk={canAsk} />
         </section>
       </main>
     </>

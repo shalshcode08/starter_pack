@@ -200,6 +200,18 @@
         <a class="sub" href="#p4-snag">A tooling snag</a>
         <a class="sub" href="#p4-proof">Proving it holds</a>
       </div>
+
+      <div class="nav-group">
+        <div class="nav-head">Phase 5 - Grounded Q&amp;A</div>
+        <a href="#phase5">Overview</a>
+        <a class="sub" href="#p5-retrieval">Retrieval, the R in RAG</a>
+        <a class="sub" href="#p5-refusal">Refusing to make things up</a>
+        <a class="sub" href="#p5-prompt">Grounding the model</a>
+        <a class="sub" href="#p5-citations">Citations you can trust</a>
+        <a class="sub" href="#p5-streaming">Streaming the answer</a>
+        <a class="sub" href="#p5-rejected">Roads not taken</a>
+        <a class="sub" href="#p5-proof">Proving it holds</a>
+      </div>
     </nav>
   </aside>
 
@@ -217,7 +229,8 @@
         <span class="chip">Phase 2 - <b>Done</b></span>
         <span class="chip">Phase 3 - <b>Done</b></span>
         <span class="chip">Phase 4 - <b>Done</b></span>
-        <span class="chip">Phase 5 - <b>Up next</b></span>
+        <span class="chip">Phase 5 - <b>Done</b></span>
+        <span class="chip">Phase 6 - <b>Up next</b></span>
       </div>
     </div>
 
@@ -596,6 +609,65 @@ UPDATE "Chunk" SET embedding = $1::vector WHERE id = $2;</code></pre>
 
       <h3 id="p4-proof">Proving Phase 4 holds</h3>
       <p>We verified the entire pipeline against the real Google model and the real database, end to end. Starting from a PDF built with known study text, the system extracted both pages, cut them into chunks (keeping the key sentence intact), embedded every chunk, and stored the vectors. Then the real test of the whole idea: we asked, in completely different words, "What guarantees referential integrity in a database?" - and the closest stored passage was exactly the one about foreign keys enforcing referential integrity. Meaning matched meaning, across different wording, scoped to the owning user. The upload and process endpoints also correctly refuse anyone without a session. The retrieval engine works - which is precisely what Phase 5 will turn into grounded, cited answers.</p>
+    </section>
+
+    <!-- ============================ PHASE 5 ============================ -->
+    <section class="doc-section" id="phase5">
+      <h2><span class="h2-eyebrow">Phase 5</span>Grounded Q&amp;A</h2>
+      <p class="section-kicker">The payoff: ask a question, get an answer built only from your own notes - with citations, and an honest "I don't know" when the notes don't cover it.</p>
+
+      <p>Everything so far has been foundation. This phase is the product. A student types a question; Recall finds the relevant passages in their own material, hands them to an AI model with strict instructions, and streams back an answer that points to the exact page it came from. This is the full <strong>RAG</strong> loop - Retrieval-Augmented Generation - finally assembled.</p>
+
+      <h3 id="p5-retrieval">Retrieval: finding the right passages</h3>
+      <p>When a question arrives, the first job is to find the handful of chunks most likely to answer it. We embed the <em>question</em> into the same 768-dimension space as the chunks (this time telling the model the text is a <code>RETRIEVAL_QUERY</code>, its query-optimized mode), then ask the database for the nearest stored chunks by cosine distance - the HNSW index from Phase 1 making this fast.</p>
+      <pre><code>SELECT c.content, c.page, d.title,
+       (c.embedding &lt;=&gt; $1::vector) AS distance   -- &lt;=&gt; is cosine distance
+FROM "Chunk" c
+JOIN "Document" d ON d.id = c."documentId"
+JOIN "StudySet" s ON s.id = d."studySetId"
+WHERE s."userId" = $2 AND s.id = $3               -- scoped to THIS user and set
+ORDER BY c.embedding &lt;=&gt; $1::vector
+LIMIT 6;</code></pre>
+      <div class="callout why"><span class="callout-label">The two lines that guarantee privacy</span>Look at the <code>WHERE</code> clause. Every retrieval is filtered by the current user's id <em>and</em> the specific study set. It is impossible for this query to return a chunk belonging to anyone else, or even to the same user's other subjects. The PRD's rule that "every vector query is authorization-scoped to the user" is not a policy we remember to follow - it is welded into the SQL. This is the single most important line in the whole feature.</div>
+
+      <h3 id="p5-refusal">Refusing to make things up</h3>
+      <p>A generic chatbot, asked something your notes do not cover, will cheerfully invent a plausible-sounding answer. For a study tool that is worse than useless - it teaches you wrong things with false confidence. Recall must instead say "that isn't in your notes." We achieve this with <strong>two layers of defense</strong>, and the story of why we need two is instructive.</p>
+      <p>The obvious approach is a <strong>distance threshold</strong>: if even the closest chunk is too far from the question, refuse without even asking the AI. We built that. But when we tested it, a totally unrelated question ("who won the 1998 football world cup?") landed at distance 0.54 from our database notes - under a loose threshold. The lesson: the embedding space is <em>compressed</em>, so "clearly unrelated" is not as far away as intuition suggests. A distance cutoff alone is a blunt instrument.</p>
+      <div class="callout anno"><span class="callout-label">Two-tier refusal</span>So we use the distance guard only as a <em>coarse</em> filter - it catches the hopeless cases and saves an unnecessary AI call. The <em>fine</em> judgment is delegated to the model itself: we instruct it to answer only from the provided passages and to explicitly declare when they do not contain the answer. When we gave the football question's (weakly-related) passages to the model, it correctly replied: "The provided sources do not contain information about the 1998 football world cup." The model, reading the actual text, is a far better judge of relevance than a single distance number. Belt and braces.</div>
+
+      <h3 id="p5-prompt">Grounding the model</h3>
+      <p>The retrieved chunks are assembled into a prompt, each numbered and labelled with its document and page. Alongside it goes a firm <strong>system instruction</strong> - the model's standing orders:</p>
+      <pre><code>Answer ONLY using the numbered sources provided. Never use outside knowledge.
+If the sources do not contain enough information, say so plainly. Do not guess.
+On the final line, list the source numbers you used, like: SOURCES: 1, 3
+If you could not answer, the final line must be: SOURCES: none</code></pre>
+      <p>The passages themselves are formatted so the model knows exactly where each came from:</p>
+      <pre><code>[1] (from "DBMS Notes", page 4)
+A foreign key enforces referential integrity between two tables...
+
+[2] (from "DBMS Notes", page 7)
+Normalization organizes tables to reduce redundancy...</code></pre>
+      <div class="callout why"><span class="callout-label">Why "only from these sources" is the whole game</span>This single constraint is what separates Recall from a chatbot that hallucinates. By forbidding outside knowledge and forcing the model to work only from retrieved text, every answer is anchored to the student's real material. We also set a low "temperature" (0.2), which makes the model favour faithful, predictable phrasing over creative flourishes - exactly what you want when accuracy matters more than style.</div>
+
+      <h3 id="p5-citations">Citations you can trust</h3>
+      <p>An answer is only trustworthy if you can check it. So the model ends every response with a hidden bookkeeping line - <code>SOURCES: 1, 3</code> - naming which passages it actually used. The server reads that line, maps those numbers back to the exact chunks (which carry a document title and page), and records them as <code>Citation</code> rows linked to the answer. The line itself is stripped out so the user never sees the plumbing; instead they see tidy source chips under the answer: "DBMS Notes - p.4".</p>
+      <div class="callout anno"><span class="callout-label">Why a trailer line instead of inline tags</span>We considered having the model sprinkle markers like [1] through its prose, but parsing those reliably out of a live-streaming response is fiddly and error-prone. A single, predictable line at the very end is trivial to parse with confidence, and it cleanly separates "the answer the human reads" from "the machine-readable record of sources." Each citation traces to a specific chunk, so the promise that every answer is checkable against its exact origin holds.</div>
+
+      <h3 id="p5-streaming">Streaming the answer</h3>
+      <p>Waiting in silence for a paragraph to generate feels broken. So the answer is <strong>streamed</strong>: the model emits words as it produces them, the server forwards each fragment immediately, and the browser paints them as they arrive - the familiar live-typing effect. The moment the stream ends, the browser quietly refreshes from the database, so the polished, citation-carrying version rendered by the server replaces the raw streamed text.</p>
+      <div class="callout why"><span class="callout-label">Two representations, on purpose</span>During streaming the browser shows the raw text for immediacy (hiding the trailing <code>SOURCES:</code> line as it goes). But the <em>authoritative</em> version comes from the database after the answer is saved, complete with its citation chips. This split keeps the live experience snappy while making the stored record - what you see on reload - the single source of truth. The database is always the last word.</div>
+
+      <div class="rejected" id="p5-rejected">
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>Letting the model use its own knowledge to "fill gaps."</b> This is what makes chatbots untrustworthy for study. Explicitly forbidden - an answer that is not from the student's notes is a bug here, not a feature.</div>
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>A distance threshold as the only refusal mechanism.</b> Tested and found too blunt (the football question slipped under it). Kept as a coarse pre-filter, but the model's own reading of the passages is the real judge.</div>
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>Multiple separate conversations per study set.</b> More UI and state for little v1 value. One conversation per study set keeps the experience focused; threaded chats can come later.</div>
+      </div>
+
+      <h3 id="p5-proof">Proving Phase 5 holds</h3>
+      <p>Verified end to end against the live model and database. A relevant question - worded completely differently from the source ("what keeps a database from referencing missing records?") - returned a correct, grounded answer and a citation pointing to the exact foreign-key passage on its page. An irrelevant question was refused, the model plainly stating the notes did not cover it, with no citations attached. Driving the real web endpoint over the network produced the same streamed answer, and afterwards the database held the question, the answer (with its bookkeeping line stripped), and a citation resolving to "DB Notes, page 1." Unauthenticated requests are rejected. The heart of the product beats correctly: it answers from your notes, shows its work, and admits when it does not know.</p>
     </section>
 
   </main>

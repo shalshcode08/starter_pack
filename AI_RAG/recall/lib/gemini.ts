@@ -4,6 +4,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export const EMBED_MODEL = "gemini-embedding-001";
 export const EMBED_DIMS = 768;
+export const GEN_MODEL = "gemini-flash-lite-latest";
 
 type TaskType = "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY";
 
@@ -39,4 +40,21 @@ export async function embed(
 /** Formats a numeric vector as a pgvector literal, e.g. "[0.1,0.2,...]". */
 export function toVectorLiteral(values: number[]): string {
   return `[${values.join(",")}]`;
+}
+
+/** Streams a grounded answer token by token, given a system instruction and prompt. */
+export async function* streamAnswer(
+  system: string,
+  prompt: string,
+): AsyncGenerator<string> {
+  const stream = await ai.models.generateContentStream({
+    model: GEN_MODEL,
+    contents: prompt,
+    config: { systemInstruction: system, temperature: 0.2 },
+  });
+
+  for await (const chunk of stream) {
+    const text = chunk.text;
+    if (text) yield text;
+  }
 }
