@@ -162,7 +162,7 @@
 <p class="subtitle">A study assistant that turns notes and lecture PDFs into a searchable, quiz-generating knowledge base - grounded Q&amp;A with citations, quizzes, and flashcards from your own material.</p>
 
 <div class="meta-row">
-  <span class="pill">Status: <b>Phase 4 - PDF ingestion (up next)</b></span>
+  <span class="pill">Status: <b>Phase 5 - grounded Q&amp;A (up next)</b></span>
   <span class="pill">Cost target: <b>Rs 0</b></span>
   <span class="pill">Deploy target: <b>Vercel Hobby</b></span>
 </div>
@@ -219,7 +219,7 @@
     <li>Indexes: ivfflat/hnsw index on embedding, FK indexes on ownership chains</li>
     <li>Seed script scaffold (used later for the guest demo)</li>
   </ul>
-  <div class="decision-box"><b>Decided:</b> declared the column as <code>Unsupported("vector(768)")</code> so Prisma generates and tracks it, then hand-edited the generated migration (via <code>--create-only</code>) to prepend <code>CREATE EXTENSION IF NOT EXISTS vector</code> and append an HNSW <code>vector_cosine_ops</code> index. Dimensions fixed at 768 to match Gemini <code>text-embedding-004</code>.</div>
+  <div class="decision-box"><b>Decided:</b> declared the column as <code>Unsupported("vector(768)")</code> so Prisma generates and tracks it, then hand-edited the generated migration (via <code>--create-only</code>) to prepend <code>CREATE EXTENSION IF NOT EXISTS vector</code> and append an HNSW <code>vector_cosine_ops</code> index. Dimensions fixed at 768 to match the Gemini embedding model (<code>gemini-embedding-001</code> at 768 output dims).</div>
   <div class="done-when"><b>Done when:</b> <code>prisma migrate dev</code> succeeds and all 8 tables exist with correct relations in Neon.</div>
 </div>
 
@@ -262,7 +262,7 @@
   <div class="phase-head">
     <div class="phase-num">4</div>
     <div class="phase-title">PDF ingestion pipeline</div>
-    <div class="status up-next">Up next</div>
+    <div class="status done">Done</div>
   </div>
   <p class="phase-goal">Upload a PDF and incrementally turn it into searchable, embedded chunks without blocking on Vercel's function timeout.</p>
   <h4>Tasks</h4>
@@ -273,7 +273,7 @@
     <li>Embed each chunk via Gemini embeddings, store the vector</li>
     <li>Status transitions: <code>processing</code> &rarr; <code>ready</code> / <code>failed</code>, surfaced in the UI with polling</li>
   </ul>
-  <div class="decision-box"><b>Decision:</b> ingestion is driven by repeated short-lived route handler invocations (not a long-running worker), since there is no paid queue/worker service in scope.</div>
+  <div class="decision-box"><b>Decided:</b> ingestion is driven by repeated short-lived route handler invocations (not a long-running worker), since there is no paid queue/worker service in scope. Upload extracts + chunks + inserts all chunks (fast, no API calls); a separate <code>/process</code> endpoint embeds 20 chunks per call and the client polls it until <code>ready</code>. Raw PDF bytes are discarded after extraction - only chunks and vectors are stored. Embeddings via <code>gemini-embedding-001</code> at 768 output dims (the free-tier API version no longer serves <code>text-embedding-004</code>); vectors are L2-normalized before storage.</div>
   <div class="done-when"><b>Done when:</b> uploading a real lecture PDF reliably reaches <code>ready</code> with correctly paged, embedded chunks, even for large files.</div>
 </div>
 
@@ -281,7 +281,7 @@
   <div class="phase-head">
     <div class="phase-num">5</div>
     <div class="phase-title">Grounded Q&amp;A</div>
-    <div class="status not-started">Not started</div>
+    <div class="status up-next">Up next</div>
   </div>
   <p class="phase-goal">Answer only from the user's own material, streamed, with exact citations, and refuse when confidence is low.</p>
   <h4>Tasks</h4>

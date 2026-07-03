@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/auth-helpers";
 import { getStudySet } from "@/lib/data/study-sets";
 import { AppHeader } from "@/app/_components/app-header";
 import { ManageStudySet } from "./_components/manage-study-set";
+import { DocumentUpload } from "./_components/document-upload";
+import { DocumentList } from "./_components/document-list";
 
 export default async function StudySetPage({
   params,
@@ -32,14 +34,14 @@ export default async function StudySetPage({
         </div>
 
         <section className="mt-10">
-          <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-            Documents
-          </h2>
-          <div className="mt-3 rounded-2xl border border-dashed border-zinc-300 p-12 text-center dark:border-zinc-700">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              PDF upload arrives in Phase 4. Documents you add will be listed
-              here.
-            </p>
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+              Documents
+            </h2>
+            <DocumentUpload studySetId={studySet.id} />
+          </div>
+          <div className="mt-4">
+            <DocumentList documents={studySet.documents} />
           </div>
         </section>
       </main>

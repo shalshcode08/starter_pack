@@ -187,6 +187,19 @@
         <a class="sub" href="#p3-bug">A real bug we caught</a>
         <a class="sub" href="#p3-proof">Proving it holds</a>
       </div>
+
+      <div class="nav-group">
+        <div class="nav-head">Phase 4 - PDF ingestion</div>
+        <a href="#phase4">Overview</a>
+        <a class="sub" href="#p4-embeddings">Embeddings, in depth</a>
+        <a class="sub" href="#p4-timeout">The timeout problem</a>
+        <a class="sub" href="#p4-incremental">The incremental design</a>
+        <a class="sub" href="#p4-chunking">Extraction and chunking</a>
+        <a class="sub" href="#p4-storage">Storing vectors</a>
+        <a class="sub" href="#p4-rejected">Roads not taken</a>
+        <a class="sub" href="#p4-snag">A tooling snag</a>
+        <a class="sub" href="#p4-proof">Proving it holds</a>
+      </div>
     </nav>
   </aside>
 
@@ -203,7 +216,8 @@
         <span class="chip">Phase 1 - <b>Done</b></span>
         <span class="chip">Phase 2 - <b>Done</b></span>
         <span class="chip">Phase 3 - <b>Done</b></span>
-        <span class="chip">Phase 4 - <b>Up next</b></span>
+        <span class="chip">Phase 4 - <b>Done</b></span>
+        <span class="chip">Phase 5 - <b>Up next</b></span>
       </div>
     </div>
 
@@ -311,7 +325,7 @@ export default defineConfig({
 
       <h3 id="p1-vector">The tricky part: the vector column</h3>
       <p>Prisma does not natively understand pgvector's special <code>vector</code> type - it is too new and specialized. Prisma gives us an escape hatch for exactly this situation: <code>Unsupported("...")</code>. It means "there is a real database column here of this exact type; I, Prisma, will keep track that it exists and include it in migrations, but I will not let you read or write it through the normal typed API." We will read and write embeddings through small hand-written SQL queries in later phases, which is the standard, accepted pattern for pgvector.</p>
-      <div class="callout why"><span class="callout-label">Why 768 numbers, fixed forever</span>The vector's length must match whatever AI model produces the embeddings. We use Google's <code>text-embedding-004</code>, which outputs exactly 768 numbers. This choice is essentially permanent: if we ever changed it, every stored embedding would become incompatible and every document would need re-processing from scratch. So we committed to 768 deliberately and up front, rather than discovering the constraint later.</div>
+      <div class="callout why"><span class="callout-label">Why 768 numbers, fixed forever</span>The vector's length must match whatever AI model produces the embeddings. We use Google's <code>gemini-embedding-001</code>, configured to output exactly 768 numbers. This choice is essentially permanent: if we ever changed it, every stored embedding would become incompatible and every document would need re-processing from scratch. So we committed to 768 deliberately and up front, rather than discovering the constraint later.</div>
 
       <div class="rejected" id="p1-rejected">
         <span class="callout-label">Road not taken</span>
@@ -514,6 +528,74 @@ export function renameStudySet(userId: string, id: string, title: string) {
 
       <h3 id="p3-proof">Proving Phase 3 holds</h3>
       <p>Several independent checks, all green. The project type-checks. We drove a complete real login (obtaining a security token, signing in through the auth library's own endpoint, receiving a session cookie, and using it to load the protected dashboard, which rendered the signed-in user's email). The study-set operations work for their owner. And the cross-user attack - read, rename, delete another user's set - failed at every turn, exactly as designed. The organizing layer of the app is in place and safe, ready for documents to be poured into it.</p>
+    </section>
+
+    <!-- ============================ PHASE 4 ============================ -->
+    <section class="doc-section" id="phase4">
+      <h2><span class="h2-eyebrow">Phase 4</span>PDF ingestion</h2>
+      <p class="section-kicker">Turning an uploaded PDF into searchable, embedded chunks - the engine room of the whole product.</p>
+
+      <p>This is the most involved phase, and the one that makes Recall more than a note organizer. The goal: a student uploads a PDF, and the app turns it into a form that can be <em>searched by meaning</em> and later answered from. Everything here builds toward that.</p>
+
+      <h3 id="p4-embeddings">Embeddings, properly this time</h3>
+      <p>Back in Phase 0 we described an <strong>embedding</strong> as turning text into a list of numbers that captures its meaning. Now we actually use them, so it is worth understanding a little deeper. An embedding is a point in a space with many dimensions - ours has 768. The remarkable property, learned by a large AI model from vast amounts of text, is that <em>meaning becomes geometry</em>: passages about similar ideas land near each other, passages about different ideas land far apart. "How do I stop the database returning made-up rows?" and "foreign keys enforce referential integrity" are worded completely differently, yet their points sit close together, because they are about the same thing.</p>
+      <p>We generate embeddings with Google's <code>gemini-embedding-001</code> model, on its free tier. Two refinements we deliberately added:</p>
+      <ul>
+        <li><strong>Task types.</strong> The model can tailor an embedding to its purpose. When embedding a chunk from a document we tell it <code>RETRIEVAL_DOCUMENT</code>; when embedding a user's question we say <code>RETRIEVAL_QUERY</code>. This asymmetry is designed for exactly our use case - matching questions to passages - and measurably improves the matches.</li>
+        <li><strong>Normalization.</strong> We scale every vector to a length of one (called L2-normalizing). Google recommends this whenever you use fewer than the model's full dimensions, and it makes the distance math clean and consistent.</li>
+      </ul>
+      <div class="callout why"><span class="callout-label">Why 768 and not the model's default</span>This model can emit up to 3072 numbers per embedding. We asked it for 768 instead. Fewer numbers means less storage and faster search, and it lets us keep the exact database column we designed back in Phase 1 - no migration, no re-thinking the index. The model supports this truncation natively (a design called Matryoshka, where shorter vectors are still meaningful), so we lose very little quality for a real efficiency gain.</div>
+
+      <h3 id="p4-timeout">The core constraint: the serverless timeout</h3>
+      <p>Here is the problem that shapes this entire phase. Recall runs on Vercel's free tier, where each web request must finish within a short time budget (roughly ten seconds). But embedding a large PDF is slow - a 40-page chapter might become 150 chunks, each needing a call to Google's model. Do that all inside the single upload request and it will run past the limit and be killed, leaving a half-processed document. The PRD names this explicitly: ingestion must be <strong>incremental</strong>, never blocking on one long request.</p>
+
+      <h3 id="p4-incremental">The design: split the work, poll for progress</h3>
+      <p>We break ingestion into two stages with very different costs:</p>
+      <ol>
+        <li><strong>Upload (one quick request).</strong> The PDF arrives; we extract its text, slice it into chunks, and save all of them to the database at once - marking the document <code>processing</code>. This part touches no AI model, so it is fast. Crucially, we then <em>throw the PDF file away</em> - we only ever needed the text.</li>
+        <li><strong>Process (many tiny requests).</strong> A separate endpoint embeds just <strong>20 chunks</strong> per call and returns immediately. The browser calls it over and over - a loop - each call chewing through another 20 chunks, until none remain. Then the document flips to <code>ready</code>.</li>
+      </ol>
+      <p>Because no single request ever embeds more than 20 chunks, no request comes close to the timeout, <em>no matter how large the PDF is</em>. A 1000-chunk textbook simply means more loop iterations, not a longer request. The browser shows a live progress bar the whole time.</p>
+      <pre><code>// The browser's loop (simplified): keep asking the server to embed the next batch
+let remaining = totalChunks;
+while (remaining > 0) {
+  const { status, remaining: left } = await postJSON(`/api/documents/${id}/process`);
+  remaining = left;
+  updateProgressBar(totalChunks - remaining, totalChunks);
+  if (status === "ready") break;
+}</code></pre>
+      <div class="callout anno"><span class="callout-label">How a request knows what is left to do</span>Each <code>/process</code> call asks the database a simple question: "give me up to 20 chunks belonging to this document that do not yet have an embedding." It embeds those, saves the vectors, and reports how many still lack one. There is no shared memory or job queue tracking progress - the database itself <em>is</em> the progress tracker. This is what makes it robust: if a call fails or the user reloads, the next call just picks up wherever the unfinished chunks are. State lives in the one place that survives everything.</div>
+
+      <h3 id="p4-chunking">Reading the PDF and cutting it up</h3>
+      <p>Extracting text from a PDF is genuinely hard - PDFs describe visual layout, not clean prose - so we lean on a library, <code>unpdf</code>, to pull the words out. We ask it for text <em>page by page</em> rather than as one blob, because we need to remember which page each piece came from. That page number is what lets a future answer say "see page 12" - the citation feature depends on capturing it here.</p>
+      <p>Then we <strong>chunk</strong>: cut each page into passages of roughly 500 tokens (a token is about four characters), breaking at sentence boundaries so we never slice a sentence in half. Consecutive chunks share a small <strong>overlap</strong> - the tail of one chunk repeats at the head of the next.</p>
+      <div class="callout why"><span class="callout-label">Why overlap, and why this size</span>Size is a balance: too large and a chunk covers several topics, blurring its meaning into mush; too small and it lacks enough context to be meaningful. Around 500 tokens is a well-tested sweet spot. The overlap solves a subtler problem - if an important idea happens to straddle a chunk boundary, without overlap it might be split so badly that neither half captures it. Repeating a little text across the seam means no idea falls through the cracks.</div>
+
+      <h3 id="p4-storage">Storing the vectors (where Prisma steps aside)</h3>
+      <p>Recall from Phase 1 that our friendly database toolkit, Prisma, does not understand the special vector type - we marked that column <code>Unsupported</code>. So while the chunks' <em>text</em> is saved through Prisma normally, writing and reading the <em>embeddings</em> uses small hand-written SQL queries. Selecting the next batch to embed is a raw query for chunks "where embedding is null"; saving a vector is a raw update. It is a deliberate, contained exception - everywhere else we keep the type-safe toolkit.</p>
+      <pre><code>-- Find the next unembedded batch (Prisma cannot express "embedding IS NULL")
+SELECT id, content FROM "Chunk"
+WHERE "documentId" = $1 AND embedding IS NULL
+ORDER BY "chunkIndex" ASC LIMIT 20;
+
+-- Save one chunk's embedding (the ::vector cast turns our text into a real vector)
+UPDATE "Chunk" SET embedding = $1::vector WHERE id = $2;</code></pre>
+
+      <div class="rejected" id="p4-rejected">
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>Storing the original PDF file.</b> We discard it after extracting text. Keeping it would need a paid file-storage service (against the zero-cost rule) and buys us nothing - citations point to page numbers, not to the file, and we never need to show the original again. Less stored, less to secure, no dependency.</div>
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>A background job queue (the "proper" enterprise way).</b> The textbook solution to slow work is a worker queue running separately from web requests. It is genuinely better at scale - but every option costs money or adds a service to run. The polling-loop design achieves the same "never block, always resumable" guarantee using only the tools we already have. Choosing the simpler thing that fully meets the requirement, over the fancier thing that does not fit the constraints, is itself the engineering.</div>
+        <span class="callout-label">Road not taken</span>
+        <div class="opt"><b>Embedding all chunks in one request.</b> The obvious first attempt, and exactly what the timeout forbids. Rejected by the constraint, not by preference.</div>
+      </div>
+
+      <h3 id="p4-snag">A tooling snag worth remembering</h3>
+      <p>After adding the new libraries, the development server suddenly refused to start. The cause was a security feature of our package manager: some packages ship little setup scripts that run at install time, and modern pnpm refuses to run them until you explicitly approve each one - and until you decide, it treats the situation as unresolved and fails. Our two new packages were sitting in that undecided state.</p>
+      <div class="callout anno"><span class="callout-label">The fix, and the judgment behind it</span>We had already proven the packages work without their setup scripts (the ingestion test used them successfully). So rather than blindly allow the scripts to run, we explicitly told pnpm "do not run these, and stop asking" - the safer choice, since it avoids executing third-party install code we do not need. The lesson mirrors Phase 3's: modern tools have safety gates that block until you make a conscious decision, and the right move is to understand what the gate is protecting against before waving it through.</div>
+
+      <h3 id="p4-proof">Proving Phase 4 holds</h3>
+      <p>We verified the entire pipeline against the real Google model and the real database, end to end. Starting from a PDF built with known study text, the system extracted both pages, cut them into chunks (keeping the key sentence intact), embedded every chunk, and stored the vectors. Then the real test of the whole idea: we asked, in completely different words, "What guarantees referential integrity in a database?" - and the closest stored passage was exactly the one about foreign keys enforcing referential integrity. Meaning matched meaning, across different wording, scoped to the owning user. The upload and process endpoints also correctly refuse anyone without a session. The retrieval engine works - which is precisely what Phase 5 will turn into grounded, cited answers.</p>
     </section>
 
   </main>

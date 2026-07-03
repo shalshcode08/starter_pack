@@ -17,7 +17,10 @@ export function getStudySet(userId: string, id: string) {
   return prisma.studySet.findFirst({
     where: { id, userId },
     include: {
-      documents: { orderBy: { createdAt: "desc" } },
+      documents: {
+        orderBy: { createdAt: "desc" },
+        include: { _count: { select: { chunks: true } } },
+      },
       _count: { select: { documents: true, questions: true } },
     },
   });
