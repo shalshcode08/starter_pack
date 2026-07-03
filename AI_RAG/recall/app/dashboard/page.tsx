@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   return (
     <>
       <AppHeader email={user.email} isGuest={user.isGuest} />
-      <main className="mx-auto w-full max-w-4xl px-6 py-10">
+      <main className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-6 sm:py-10">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Your study sets
         </h1>
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
                   href={`/study-sets/${set.id}`}
                   className="block rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
                 >
-                  <h2 className="font-medium text-zinc-900 dark:text-zinc-50">
+                  <h2 className="break-words font-medium text-zinc-900 dark:text-zinc-50">
                     {set.title}
                   </h2>
                   <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">

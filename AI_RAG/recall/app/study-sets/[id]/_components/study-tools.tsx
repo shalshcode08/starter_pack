@@ -102,7 +102,7 @@ export function StudyTools({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-800">
           {(["quiz", "flashcard"] as const).map((t) => (
             <button

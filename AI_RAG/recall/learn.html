@@ -229,6 +229,15 @@
         <a class="sub" href="#p7-provider">A second front door</a>
         <a class="sub" href="#p7-proof">Proving it holds</a>
       </div>
+
+      <div class="nav-group">
+        <div class="nav-head">Phase 8 - Polish</div>
+        <a href="#phase8">Overview</a>
+        <a class="sub" href="#p8-landing">The public front door</a>
+        <a class="sub" href="#p8-polish">Responsive polish</a>
+        <a class="sub" href="#p8-build">Build reliability</a>
+        <a class="sub" href="#p8-deploy">Deployment handoff</a>
+      </div>
     </nav>
   </aside>
 
@@ -249,7 +258,7 @@
         <span class="chip">Phase 5 - <b>Done</b></span>
         <span class="chip">Phase 6 - <b>Done</b></span>
         <span class="chip">Phase 7 - <b>Done</b></span>
-        <span class="chip">Phase 8 - <b>Up next</b></span>
+        <span class="chip">Phase 8 - <b>In progress</b></span>
       </div>
     </div>
 
@@ -748,6 +757,63 @@ FROM "Chunk" WHERE "documentId" = $2;</code></pre>
 
       <h3 id="p7-proof">Proving Phase 7 holds</h3>
       <p>Verified end to end. Triggering a guest login created a fresh isolated account whose email marks it a guest, pre-loaded with its own copy of the Photosynthesis sample - all twelve chunks present <em>with</em> their embeddings intact. A meaning-based search on that cloned data correctly found the passage about the carbon-fixing enzyme, proving the copied vectors work. Driving the real one-click flow over the network landed on a dashboard showing the "Guest mode" badge and the sample study set, ready to use. And on that same cloned material, quiz and flashcard generation produced properly-sourced items. A stranger can now go from link to asking questions of real AI in a single click, touching no one else's data.</p>
+    </section>
+
+    <!-- ============================ PHASE 8 ============================ -->
+    <section class="doc-section" id="phase8">
+      <h2><span class="h2-eyebrow">Phase 8</span>Polish, deployment, and documentation</h2>
+      <p class="section-kicker">Turning a working app into something a recruiter or user can understand, try, and trust.</p>
+
+      <p>By Phase 7, Recall already had the hard product machinery: auth, uploads, embeddings, retrieval, citations, generated study material, and an isolated guest demo. Phase 8 is about the last mile. A visitor should not land on a starter template. A small phone should not make forms feel broken. A future reviewer should be able to read the README and understand the architecture without spelunking through the code.</p>
+
+      <h3 id="p8-landing">The public front door</h3>
+      <p>The old home page was still the default create-next-app screen, which is actively harmful for a portfolio project. It says "unfinished" before the user has seen anything else. We replaced it with a real product page: a short explanation of Recall, a primary guest-demo path, a sign-in path, and a live-looking product preview that shows the core promise - a question, a cited answer, source passages, and generated study tools.</p>
+      <pre><code>import Link from "next/link";
+import { GuestButton } from "@/app/(auth)/_components/guest-button";
+
+export default function Home() {
+  return (
+    &lt;main className="min-h-full bg-[#f7f3ea] text-stone-950"&gt;
+      ...
+      &lt;GuestButton /&gt;
+      &lt;Link href="/login"&gt;Sign in&lt;/Link&gt;
+      ...
+    &lt;/main&gt;
+  );
+}</code></pre>
+      <div class="callout anno"><span class="callout-label">Why reuse the real guest button</span>The landing page could have linked to the login page and made the visitor click again. Instead it imports the same <code>GuestButton</code> used on the login screen. That means the primary call to action is not decorative; it runs the real guest-login server action from Phase 7. The marketing surface and the product surface share the same path, so there is less chance they drift apart.</div>
+
+      <h3 id="p8-polish">Responsive polish</h3>
+      <p>The app already had useful empty, loading, and error states: document upload shows progress, chat disables itself until a PDF is ready, study tools explain when generation is unavailable, and forms display server-side errors. The main polish gap was layout resilience. Several controls assumed a single horizontal row, which is fine on a laptop but cramped on a phone.</p>
+      <pre><code>&lt;form
+  ref={formRef}
+  action={formAction}
+  className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+&gt;
+  &lt;input className="min-w-0 rounded-lg ..." /&gt;
+  &lt;Submit /&gt;
+&lt;/form&gt;</code></pre>
+      <p>This pattern says: on small screens, stack the input and button; on wider screens, use a two-column row. The <code>min-w-0</code> detail matters because CSS grid and flex layouts otherwise let long text refuse to shrink, causing overflow. We applied the same idea to the app header, study set title controls, upload button, chat form, and study tools toolbar.</p>
+      <div class="callout why"><span class="callout-label">Road not taken</span>We did not redesign the whole authenticated app. The existing interface is intentionally quiet and work-focused, which fits a study tool. Phase 8 improves robustness and presentation without burying the actual product under a decorative rewrite.</div>
+
+      <h3 id="p8-build">Build reliability</h3>
+      <p>The first production build failed for an environmental reason: the app used <code>next/font/google</code>, which tries to fetch font files from Google during the build. In a restricted or offline environment, that download fails even though the product code is fine. A portfolio app should be easy to build anywhere, so we removed that external font dependency and used system fonts.</p>
+      <pre><code>export default function RootLayout({ children }) {
+  return (
+    &lt;html lang="en" className="h-full antialiased"&gt;
+      &lt;body className="min-h-full flex flex-col"&gt;{children}&lt;/body&gt;
+    &lt;/html&gt;
+  );
+}</code></pre>
+      <div class="callout anno"><span class="callout-label">Why this is not just cosmetic</span>A web font is visual polish, but a reliable build is more important. Removing the network dependency means local builds, CI builds, and Vercel builds are less fragile. The app still looks professional, and it no longer needs a font download to compile.</div>
+
+      <h3 id="p8-deploy">Deployment handoff</h3>
+      <p>The README was rewritten from the starter template into project documentation: what Recall does, how the RAG pipeline works, how user scoping is enforced, which scripts exist, how to run locally, and how to deploy on Vercel Hobby with Neon and Gemini. It also lists the final production verification checklist.</p>
+      <p>One part cannot be completed inside this workspace: the public Vercel deployment. It requires the owner's Vercel account, project selection, production environment variables, and a production Neon database URL. The local code is ready for that step, and the commands are explicit:</p>
+      <pre><code>pnpm db:deploy
+pnpm db:seed
+pnpm build</code></pre>
+      <div class="callout why"><span class="callout-label">What was verified</span><code>node_modules/.bin/tsc --noEmit</code> passes. <code>pnpm build</code> passes when Turbopack is allowed to bind its internal worker port. The remaining PRD item is the publicly reachable deployment and live-site walkthrough after the owner supplies production credentials.</div>
     </section>
 
   </main>

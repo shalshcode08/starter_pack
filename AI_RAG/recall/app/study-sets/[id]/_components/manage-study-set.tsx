@@ -35,7 +35,10 @@ export function ManageStudySet({ id, title }: { id: string; title: string }) {
   if (editing) {
     return (
       <div>
-        <form action={formAction} className="flex items-center gap-2">
+        <form
+          action={formAction}
+          className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+        >
           <input type="hidden" name="id" value={id} />
           <input
             name="title"
@@ -43,7 +46,7 @@ export function ManageStudySet({ id, title }: { id: string; title: string }) {
             autoFocus
             required
             maxLength={100}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-lg font-semibold text-zinc-900 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-lg font-semibold text-zinc-900 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
           <RenameSubmit />
           <button
@@ -64,11 +67,11 @@ export function ManageStudySet({ id, title }: { id: string; title: string }) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <h1 className="break-words text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
         {title}
       </h1>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => setEditing(true)}

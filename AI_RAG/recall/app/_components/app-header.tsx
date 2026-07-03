@@ -10,8 +10,8 @@ export function AppHeader({
 }) {
   return (
     <header className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-black/80">
-      <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
+      <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
           <Link
             href="/dashboard"
             className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
@@ -24,9 +24,9 @@ export function AppHeader({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           {email && !isGuest && (
-            <span className="hidden text-sm text-zinc-500 sm:inline dark:text-zinc-400">
+            <span className="hidden max-w-56 truncate text-sm text-zinc-500 sm:inline dark:text-zinc-400">
               {email}
             </span>
           )}

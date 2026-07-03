@@ -134,7 +134,7 @@ export function Chat({
 
       <form
         onSubmit={onSubmit}
-        className="flex gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800"
+        className="grid gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800 sm:grid-cols-[minmax(0,1fr)_auto]"
       >
         <input
           value={input}
@@ -145,12 +145,12 @@ export function Chat({
               ? "Ask about your notes..."
               : "Upload and process a PDF to start asking"
           }
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-400"
+          className="min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-400"
         />
         <button
           type="submit"
           disabled={!canAsk || busy || !input.trim()}
-          className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="shrink-0 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
         >
           {busy ? "..." : "Ask"}
         </button>

@@ -77,7 +77,7 @@ export function DocumentUpload({ studySetId }: { studySetId: string }) {
     progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <div>
+    <div className="w-full sm:w-auto">
       <input
         ref={inputRef}
         type="file"
@@ -90,7 +90,7 @@ export function DocumentUpload({ studySetId }: { studySetId: string }) {
       <label
         htmlFor="pdf-upload"
         aria-disabled={busy}
-        className={`inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+        className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition sm:w-auto ${
           busy
             ? "cursor-not-allowed bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
             : "bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"

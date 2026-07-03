@@ -47,7 +47,7 @@ export default async function StudySetPage({
   return (
     <>
       <AppHeader email={user.email} isGuest={user.isGuest} />
-      <main className="mx-auto w-full max-w-4xl px-6 py-10">
+      <main className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-6 sm:py-10">
         <Link
           href="/dashboard"
           className="text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
@@ -60,7 +60,7 @@ export default async function StudySetPage({
         </div>
 
         <section className="mt-10">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
               Documents
             </h2>
