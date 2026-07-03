@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, type Schema } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -57,4 +57,23 @@ export async function* streamAnswer(
     const text = chunk.text;
     if (text) yield text;
   }
+}
+
+/** Generates JSON matching the given schema and returns it parsed. */
+export async function generateJson<T>(
+  system: string,
+  prompt: string,
+  schema: Schema,
+): Promise<T> {
+  const res = await ai.models.generateContent({
+    model: GEN_MODEL,
+    contents: prompt,
+    config: {
+      systemInstruction: system,
+      responseMimeType: "application/json",
+      responseSchema: schema,
+      temperature: 0.5,
+    },
+  });
+  return JSON.parse(res.text ?? "[]") as T;
 }

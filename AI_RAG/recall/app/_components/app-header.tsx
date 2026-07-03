@@ -1,18 +1,31 @@
 import Link from "next/link";
 import { signOut } from "@/auth";
 
-export function AppHeader({ email }: { email?: string | null }) {
+export function AppHeader({
+  email,
+  isGuest,
+}: {
+  email?: string | null;
+  isGuest?: boolean;
+}) {
   return (
     <header className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-black/80">
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
-        <Link
-          href="/dashboard"
-          className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
-        >
-          Recall
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
+          >
+            Recall
+          </Link>
+          {isGuest && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-400">
+              Guest mode
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-4">
-          {email && (
+          {email && !isGuest && (
             <span className="hidden text-sm text-zinc-500 sm:inline dark:text-zinc-400">
               {email}
             </span>

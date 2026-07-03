@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-helpers";
 import { getStudySet } from "@/lib/data/study-sets";
 import { getConversation } from "@/lib/data/conversations";
+import { listQuestions } from "@/lib/data/questions";
 import { AppHeader } from "@/app/_components/app-header";
 import { ManageStudySet } from "./_components/manage-study-set";
 import { DocumentUpload } from "./_components/document-upload";
 import { DocumentList } from "./_components/document-list";
 import { Chat, type ChatMessage } from "./_components/chat";
+import { StudyTools, type QuestionItem } from "./_components/study-tools";
 
 export default async function StudySetPage({
   params,
@@ -32,9 +34,19 @@ export default async function StudySetPage({
   }));
   const canAsk = studySet.documents.some((d) => d.status === "ready");
 
+  const questions = await listQuestions(user.id, id);
+  const toItem = (q: (typeof questions)[number]): QuestionItem => ({
+    id: q.id,
+    prompt: q.prompt,
+    answer: q.answer,
+    source: { documentTitle: q.sourceChunk.document.title, page: q.sourceChunk.page },
+  });
+  const quiz = questions.filter((q) => q.type === "quiz").map(toItem);
+  const flashcards = questions.filter((q) => q.type === "flashcard").map(toItem);
+
   return (
     <>
-      <AppHeader email={user.email} />
+      <AppHeader email={user.email} isGuest={user.isGuest} />
       <main className="mx-auto w-full max-w-4xl px-6 py-10">
         <Link
           href="/dashboard"
@@ -64,6 +76,18 @@ export default async function StudySetPage({
             Ask
           </h2>
           <Chat studySetId={studySet.id} initialMessages={messages} canAsk={canAsk} />
+        </section>
+
+        <section className="mt-10">
+          <h2 className="mb-4 text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            Study tools
+          </h2>
+          <StudyTools
+            studySetId={studySet.id}
+            quiz={quiz}
+            flashcards={flashcards}
+            canGenerate={canAsk}
+          />
         </section>
       </main>
     </>

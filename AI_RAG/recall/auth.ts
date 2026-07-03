@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { authConfig } from "./auth.config";
 import { credentialsSchema } from "./lib/validation";
 import { prisma } from "./lib/db";
+import { createGuestUser } from "./lib/demo";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -22,6 +23,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!valid) return null;
 
         return { id: user.id, email: user.email, name: user.name };
+      },
+    }),
+    Credentials({
+      id: "guest",
+      name: "Guest",
+      credentials: {},
+      async authorize() {
+        const guest = await createGuestUser();
+        if (!guest) return null;
+        return {
+          id: guest.id,
+          email: guest.email,
+          name: guest.name,
+          isGuest: true,
+        };
       },
     }),
   ],

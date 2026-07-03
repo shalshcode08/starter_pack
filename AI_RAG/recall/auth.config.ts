@@ -28,11 +28,15 @@ export const authConfig = {
       return true;
     },
     jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+        token.isGuest = "isGuest" in user ? Boolean(user.isGuest) : false;
+      }
       return token;
     },
     session({ session, token }) {
       if (token.id) session.user.id = token.id as string;
+      session.user.isGuest = Boolean(token.isGuest);
       return session;
     },
   },

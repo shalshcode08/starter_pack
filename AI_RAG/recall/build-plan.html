@@ -162,7 +162,7 @@
 <p class="subtitle">A study assistant that turns notes and lecture PDFs into a searchable, quiz-generating knowledge base - grounded Q&amp;A with citations, quizzes, and flashcards from your own material.</p>
 
 <div class="meta-row">
-  <span class="pill">Status: <b>Phase 6 - quiz &amp; flashcards (up next)</b></span>
+  <span class="pill">Status: <b>Phase 8 - polish &amp; deploy (up next)</b></span>
   <span class="pill">Cost target: <b>Rs 0</b></span>
   <span class="pill">Deploy target: <b>Vercel Hobby</b></span>
 </div>
@@ -301,7 +301,7 @@
   <div class="phase-head">
     <div class="phase-num">6</div>
     <div class="phase-title">Quiz &amp; flashcard generation</div>
-    <div class="status up-next">Up next</div>
+    <div class="status done">Done</div>
   </div>
   <p class="phase-goal">Generate study material from a study set's chunks, each item traceable to its source.</p>
   <h4>Tasks</h4>
@@ -310,14 +310,15 @@
     <li>Persist as Question rows (type quiz/flashcard) linked to sourceChunkId</li>
     <li>UI to generate, browse, and review quiz/flashcard sets per study set</li>
   </ul>
-  <div class="done-when"><b>Done when:</b> generating a quiz from a study set produces items that each link back to the exact chunk they came from.</div>
+  <div class="decision-box"><b>Decided:</b> generation uses Gemini <b>structured JSON output</b> (a response schema) so items come back well-formed. Each item carries a <code>sourceIndex</code> that maps to the exact chunk it was drawn from, persisted as <code>Question.sourceChunkId</code>. Quiz and flashcards share one schema (prompt + answer), differing only in framing. "Generate" replaces the existing set of that type. 8 items per set, sampled from up to 24 chunks of ready documents.</div>
+  <div class="done-when"><b>Done when:</b> generating a quiz from a study set produces items that each link back to the exact chunk they came from. <b>Verified.</b></div>
 </div>
 
 <div class="phase">
   <div class="phase-head">
     <div class="phase-num">7</div>
     <div class="phase-title">Guest demo</div>
-    <div class="status not-started">Not started</div>
+    <div class="status done">Done</div>
   </div>
   <p class="phase-goal">Let anyone try the product in one click, no signup friction.</p>
   <h4>Tasks</h4>
@@ -326,14 +327,15 @@
     <li>"Try as guest" flow that logs into (or spins up) the seeded account</li>
     <li>Guard rails so guest data resets and can't be permanently modified/deleted by others</li>
   </ul>
-  <div class="done-when"><b>Done when:</b> a fresh visitor can click one button and immediately ask questions against seeded material.</div>
+  <div class="decision-box"><b>Decided:</b> a seeded <b>template</b> account (<code>pnpm db:seed</code>, a sample Photosynthesis chapter, pre-embedded) is the source of truth. "Try a live demo" uses a dedicated <code>guest</code> auth provider that <b>clones the template into a fresh isolated guest user</b> on each click - study set, document, and chunks with embeddings copied via SQL (no re-embedding), so guests never collide or mutate shared data. Guests are flagged <code>isGuest</code> for a "Guest mode" banner and a <code>db:cleanup-guests</code> maintenance script.</div>
+  <div class="done-when"><b>Done when:</b> a fresh visitor can click one button and immediately ask questions against seeded material. <b>Verified.</b></div>
 </div>
 
 <div class="phase">
   <div class="phase-head">
     <div class="phase-num">8</div>
     <div class="phase-title">Polish, deploy, document</div>
-    <div class="status not-started">Not started</div>
+    <div class="status up-next">Up next</div>
   </div>
   <p class="phase-goal">Ship it, and make it look like a finished, professional product.</p>
   <h4>Tasks</h4>

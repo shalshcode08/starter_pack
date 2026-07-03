@@ -212,6 +212,23 @@
         <a class="sub" href="#p5-rejected">Roads not taken</a>
         <a class="sub" href="#p5-proof">Proving it holds</a>
       </div>
+
+      <div class="nav-group">
+        <div class="nav-head">Phase 6 - Quiz &amp; flashcards</div>
+        <a href="#phase6">Overview</a>
+        <a class="sub" href="#p6-structured">Structured output</a>
+        <a class="sub" href="#p6-tracing">Tracing each item to its source</a>
+        <a class="sub" href="#p6-proof">Proving it holds</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-head">Phase 7 - Guest demo</div>
+        <a href="#phase7">Overview</a>
+        <a class="sub" href="#p7-isolation">The isolation problem</a>
+        <a class="sub" href="#p7-clone">Cloning without re-embedding</a>
+        <a class="sub" href="#p7-provider">A second front door</a>
+        <a class="sub" href="#p7-proof">Proving it holds</a>
+      </div>
     </nav>
   </aside>
 
@@ -230,7 +247,9 @@
         <span class="chip">Phase 3 - <b>Done</b></span>
         <span class="chip">Phase 4 - <b>Done</b></span>
         <span class="chip">Phase 5 - <b>Done</b></span>
-        <span class="chip">Phase 6 - <b>Up next</b></span>
+        <span class="chip">Phase 6 - <b>Done</b></span>
+        <span class="chip">Phase 7 - <b>Done</b></span>
+        <span class="chip">Phase 8 - <b>Up next</b></span>
       </div>
     </div>
 
@@ -668,6 +687,67 @@ Normalization organizes tables to reduce redundancy...</code></pre>
 
       <h3 id="p5-proof">Proving Phase 5 holds</h3>
       <p>Verified end to end against the live model and database. A relevant question - worded completely differently from the source ("what keeps a database from referencing missing records?") - returned a correct, grounded answer and a citation pointing to the exact foreign-key passage on its page. An irrelevant question was refused, the model plainly stating the notes did not cover it, with no citations attached. Driving the real web endpoint over the network produced the same streamed answer, and afterwards the database held the question, the answer (with its bookkeeping line stripped), and a citation resolving to "DB Notes, page 1." Unauthenticated requests are rejected. The heart of the product beats correctly: it answers from your notes, shows its work, and admits when it does not know.</p>
+    </section>
+
+    <!-- ============================ PHASE 6 ============================ -->
+    <section class="doc-section" id="phase6">
+      <h2><span class="h2-eyebrow">Phase 6</span>Quiz and flashcard generation</h2>
+      <p class="section-kicker">Turning a study set into practice material - questions and flashcards, each traceable to the exact passage it came from.</p>
+
+      <p>Reading notes is passive; testing yourself is how things stick. This phase generates two kinds of active-recall material from a study set: <strong>quiz questions</strong> (a question and its answer) and <strong>flashcards</strong> (a term and its explanation). Both are built the same way - sample the study set's chunks, ask the model to write items, and store each one linked to its source.</p>
+
+      <h3 id="p6-structured">Structured output: making the AI return data, not prose</h3>
+      <p>For chat, we wanted flowing text. Here we want the opposite: clean, machine-readable data - a list of items, each with a prompt, an answer, and a pointer to its source. If we just asked the model in plain English and parsed the reply, a single stray word or missing bracket could break everything. Instead we use a feature called <strong>structured output</strong>: we hand the model a strict schema describing the exact shape we want, and the API guarantees the response conforms to it.</p>
+      <pre><code>// The shape we demand back - an array of items, each with these fields
+{
+  type: ARRAY,
+  items: {
+    type: OBJECT,
+    properties: {
+      sourceIndex: { type: INTEGER },   // which source this came from
+      prompt:      { type: STRING },     // the question or term
+      answer:      { type: STRING },     // the answer or definition
+    },
+    required: ["sourceIndex", "prompt", "answer"],
+  },
+}</code></pre>
+      <div class="callout why"><span class="callout-label">Why a schema beats "please return JSON"</span>Politely asking a model for JSON usually works - until the one time it wraps the output in an explanation, or trails off, and your code crashes on real users. Declaring the schema moves the guarantee from hope to contract: the response is valid structured data by construction. This is the professional way to get data (rather than prose) out of a language model, and it makes the whole feature reliable instead of flaky.</div>
+
+      <h3 id="p6-tracing">Tracing every item back to its source</h3>
+      <p>The PRD insists each generated item be "traceable to where it came from." We achieve this the same way as citations in Phase 5: the chunks are numbered when handed to the model, and each item it returns names the <code>sourceIndex</code> it drew from. Back in our code, we map that number to the real chunk's id and store it on the question as <code>sourceChunkId</code>. So every flashcard and quiz question is permanently linked to the exact passage that justifies it - and the interface shows that source (document and page) right on the card.</p>
+      <div class="callout anno"><span class="callout-label">A small guard that matters</span>Models occasionally cite a source number that does not exist, or return a blank field. Before saving, we discard any item whose <code>sourceIndex</code> does not map to a real chunk, or whose prompt or answer is empty. Only well-formed, genuinely-sourced items reach the database. Trusting model output blindly is how bad data creeps in; a cheap validation pass keeps the study material honest.</div>
+      <p>Pressing "Generate" replaces the previous set of that type, so a student always gets a fresh batch rather than an ever-growing pile. Quiz cards reveal their answer on click; flashcards flip between term and explanation - simple, familiar study interactions.</p>
+
+      <h3 id="p6-proof">Proving Phase 6 holds</h3>
+      <p>Verified against the live model using the seeded sample chapter. Generation produced eight quiz questions and eight flashcards; <em>every</em> item mapped to a real source chunk from the material; and after saving, reading them back showed each carrying its source document and page. The generate-and-replace flow, the structured schema, and the source-linking all work together correctly.</p>
+    </section>
+
+    <!-- ============================ PHASE 7 ============================ -->
+    <section class="doc-section" id="phase7">
+      <h2><span class="h2-eyebrow">Phase 7</span>The guest demo</h2>
+      <p class="section-kicker">Letting anyone try the real product in one click, with zero signup and zero risk to other users' data.</p>
+
+      <p>A portfolio project nobody can try is a screenshot. The guest demo removes every barrier: one click and you are inside a working account, pre-loaded with a sample chapter, free to ask questions and generate quizzes immediately. The engineering challenge is doing this <em>safely</em>.</p>
+
+      <h3 id="p7-isolation">The isolation problem</h3>
+      <p>The tempting shortcut is a single shared "demo account" that everyone logs into. It is easy - and it is a trap. Two strangers using it at once would see each other's questions, overwrite each other's generated quizzes, and generally trip over one another. Worse, anyone could delete the sample material and break the demo for the next visitor. A shared mutable account is a bad experience waiting to happen.</p>
+      <p>So instead, <strong>every guest gets their own private, throwaway account</strong>, pre-filled with a personal copy of the demo material. Guests are completely isolated from each other and from real users - the same authorization rules from Phase 3 apply, no exceptions for being a guest.</p>
+
+      <h3 id="p7-clone">Cloning the sample - without paying to re-embed</h3>
+      <p>Here is the neat part. The sample chapter is seeded once into a hidden <strong>template</strong> account - its text extracted, chunked, and embedded (the expensive, slow steps from Phase 4). When someone clicks "try the demo," we do not re-run any of that. We <strong>clone</strong> the template's content into the new guest account, copying the chunks <em>and their existing embeddings</em> straight across in the database.</p>
+      <pre><code>-- Copy every chunk of a template document into the guest's new document,
+-- embeddings and all, in one statement. No AI calls, no waiting.
+INSERT INTO "Chunk" (id, "documentId", content, embedding, page, "chunkIndex", "tokenCount")
+SELECT gen_random_uuid()::text, $1, content, embedding, page, "chunkIndex", "tokenCount"
+FROM "Chunk" WHERE "documentId" = $2;</code></pre>
+      <div class="callout why"><span class="callout-label">Why copy embeddings instead of regenerating</span>Embedding a chapter costs time and API quota. Every guest re-embedding the same fixed sample would be pure waste - slow for the user (a spinner on the one action that must feel instant) and needless load on the free-tier model. Since the sample never changes, its vectors are computed once and copied byte for byte. A guest account materializes in a moment, fully searchable. This is the kind of efficiency instinct - do expensive work once, reuse the result - that separates thoughtful engineering from the naive path.</div>
+
+      <h3 id="p7-provider">A second front door</h3>
+      <p>Recall's normal way in is email and password. For guests we added a <em>second</em> login method to the auth system - a "guest" provider with no form to fill in. When triggered, instead of checking a password it runs the clone-and-create routine and hands back a brand-new guest identity. The rest of the app cannot tell the difference: a guest has a normal session and is subject to all the same rules. We tag these accounts with an <code>isGuest</code> flag, which powers a small "Guest mode" badge in the header and lets a routine cleanup script sweep away old guest accounts so they do not pile up forever.</p>
+      <div class="callout anno"><span class="callout-label">Reusing the machinery, not bypassing it</span>It would have been easy to hack in a special back door that skips authentication for guests. We deliberately did not. By expressing "guest" as just another login provider inside the same auth system, guests flow through the exact same session handling, the same middleware, and the same per-user data scoping as everyone else. The safe design is the one where there are no special cases to get wrong.</div>
+
+      <h3 id="p7-proof">Proving Phase 7 holds</h3>
+      <p>Verified end to end. Triggering a guest login created a fresh isolated account whose email marks it a guest, pre-loaded with its own copy of the Photosynthesis sample - all twelve chunks present <em>with</em> their embeddings intact. A meaning-based search on that cloned data correctly found the passage about the carbon-fixing enzyme, proving the copied vectors work. Driving the real one-click flow over the network landed on a dashboard showing the "Guest mode" badge and the sample study set, ready to use. And on that same cloned material, quiz and flashcard generation produced properly-sourced items. A stranger can now go from link to asking questions of real AI in a single click, touching no one else's data.</p>
     </section>
 
   </main>
