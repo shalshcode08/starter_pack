@@ -2,7 +2,7 @@
 
 Recall is a RAG study assistant for students. Upload lecture PDFs, group them into study sets, ask questions that are answered only from your material, and generate quizzes or flashcards that trace back to the exact source passage.
 
-Live URL: pending Vercel deployment.
+Live URL: https://recall-apk.vercel.app/
 
 ## What It Does
 
@@ -15,12 +15,9 @@ Live URL: pending Vercel deployment.
 
 ## Screenshots
 
-Add production screenshots after deployment:
+### Landing page
 
-- Landing page with guest demo entry.
-- Study set detail page with a ready document.
-- Grounded answer with citation chips.
-- Quiz or flashcard view with source reference.
+![Recall landing page](public/screenshots/landing-dark.png)
 
 ## Architecture
 
@@ -156,3 +153,11 @@ pnpm build
 ```
 
 The build uses no external font downloads, so it can run in restricted environments.
+
+Production checks completed against `https://recall-apk.vercel.app/`:
+
+- Public home page responds with `HTTP 200`.
+- Guest demo login creates an isolated guest session and loads the seeded study set.
+- Grounded chat returns an answer for an in-scope question and stores citation chips on the study-set page.
+- Out-of-scope chat questions are refused with `SOURCES: none`.
+- PDF upload and incremental processing reach `ready` on the deployed app.

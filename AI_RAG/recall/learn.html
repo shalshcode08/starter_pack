@@ -258,7 +258,7 @@
         <span class="chip">Phase 5 - <b>Done</b></span>
         <span class="chip">Phase 6 - <b>Done</b></span>
         <span class="chip">Phase 7 - <b>Done</b></span>
-        <span class="chip">Phase 8 - <b>In progress</b></span>
+        <span class="chip">Phase 8 - <b>Done</b></span>
       </div>
     </div>
 
@@ -808,12 +808,12 @@ export default function Home() {
       <div class="callout anno"><span class="callout-label">Why this is not just cosmetic</span>A web font is visual polish, but a reliable build is more important. Removing the network dependency means local builds, CI builds, and Vercel builds are less fragile. The app still looks professional, and it no longer needs a font download to compile.</div>
 
       <h3 id="p8-deploy">Deployment handoff</h3>
-      <p>The README was rewritten from the starter template into project documentation: what Recall does, how the RAG pipeline works, how user scoping is enforced, which scripts exist, how to run locally, and how to deploy on Vercel Hobby with Neon and Gemini. It also lists the final production verification checklist.</p>
-      <p>One part cannot be completed inside this workspace: the public Vercel deployment. It requires the owner's Vercel account, project selection, production environment variables, and a production Neon database URL. The local code is ready for that step, and the commands are explicit:</p>
+      <p>The README was rewritten from the starter template into project documentation: what Recall does, how the RAG pipeline works, how user scoping is enforced, which scripts exist, how to run locally, and how to deploy on Vercel Hobby with Neon and Gemini. Once the app was deployed, we updated that README with the real public URL and production screenshot assets.</p>
+      <p>The live deployment now runs at <code>https://recall-apk.vercel.app/</code>. We verified the public home page responds, the one-click guest flow lands in an isolated seeded account, grounded answers persist with citation chips on the study-set page, out-of-scope questions are refused, and a freshly uploaded PDF reaches <code>ready</code> through the incremental processing route.</p>
       <pre><code>pnpm db:deploy
 pnpm db:seed
 pnpm build</code></pre>
-      <div class="callout why"><span class="callout-label">What was verified</span><code>node_modules/.bin/tsc --noEmit</code> passes. <code>pnpm build</code> passes when Turbopack is allowed to bind its internal worker port. The remaining PRD item is the publicly reachable deployment and live-site walkthrough after the owner supplies production credentials.</div>
+      <div class="callout why"><span class="callout-label">What was verified</span><code>node_modules/.bin/tsc --noEmit</code> passes. <code>pnpm build</code> passes when Turbopack is allowed to bind its internal worker port. On the deployed site, guest login, upload-to-ready, grounded answers with citations, and refusal behavior all held under live requests. The guest-cleanup path remains operational through <code>pnpm db:cleanup-guests</code>, and is the main operational follow-up if you want the production demo to self-prune automatically.</div>
     </section>
 
   </main>
